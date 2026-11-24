@@ -41,11 +41,11 @@ Everything runs by itself on Aman's Windows PC: scans every 30 minutes, drafts t
 Run `register_tasks.ps1` as Administrator. In Task Scheduler, run `Radar_Scan` and `Radar_Drafts` by hand. Alerts, the digest and drafts should arrive with no terminal involved. Then run `python -m radar doctor`; everything should pass.
 
 ## Acceptance
-- [ ] One full unattended cycle works
-- [ ] A missing `claude` degrades to a Telegram note
-- [ ] README complete
-- [ ] Tests pass
-- [ ] `docs/PROGRESS.md` updated, with a known-issues list
+- [ ] One full unattended cycle works (pending: real credentials + `register_tasks.ps1` as Administrator)
+- [x] A missing `claude` degrades to a Telegram note (verified locally)
+- [x] README complete
+- [x] Tests pass
+- [x] `docs/PROGRESS.md` updated, with a known-issues list
 
 Commit: `stage 7: scheduling, headless drafting, doctor and readme`
 

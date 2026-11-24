@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import html
+import json
 import logging
 import re
 import sys
@@ -14,7 +16,9 @@ from .config import Settings, load_settings
 from .logger import setup_logging
 from .digest import RunSummary
 from .drafts import DraftsFileError, send_drafts
+from .doctor import format_checks, run_doctor
 from .feedback import run_feedback
+from .housekeeping import run_housekeeping
 from .ingest import is_paused, run_ingest_eml, run_scan
 from .models import Lead
 from .pipeline import Context, process
@@ -126,6 +130,10 @@ def cmd_scan(args: argparse.Namespace, settings: Settings) -> int:
         run_id = store.start_run("scan", now)
         summary = run_scan(_context(settings, store, args.dry_run, now))
         _finish(store, run_id, summary)
+    try:
+        run_housekeeping(settings, now, dry_run=args.dry_run)
+    except OSError as exc:
+        log.warning("Housekeeping failed: %s", exc)
     _print_summary(summary, args.dry_run)
     for error in summary.errors:
         print(f"  error: {error}")
@@ -192,6 +200,50 @@ def cmd_stats(args: argparse.Namespace, settings: Settings) -> int:
     print(re.sub(r"<[^>]+>", "", text).replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">"))
     if not args.no_send:
         TelegramClient(settings, dry_run=args.dry_run).send(text, kind="stats")
+    return 0
+
+
+def cmd_doctor(args: argparse.Namespace, settings: Settings) -> int:
+    checks = run_doctor(settings, _now(), dry_run=args.dry_run)
+    print(format_checks(checks))
+    failed = [c for c in checks if not c.ok]
+    print("all checks passed" if not failed else f"{len(failed)} check(s) failed")
+    return 1 if failed else 0
+
+
+def cmd_housekeeping(args: argparse.Namespace, settings: Settings) -> int:
+    result = run_housekeeping(settings, _now(), dry_run=args.dry_run)
+    prefix = "[dry-run] " if args.dry_run else ""
+    print(f"{prefix}housekeeping: " + ", ".join(f"{k} {v}" for k, v in result.items()))
+    return 0
+
+
+def cmd_drafts_pending(args: argparse.Namespace, settings: Settings) -> int:
+    """Print how many leads in the leads file still need a draft (used by scripts/run_drafts.ps1)."""
+    path = Path(args.file) if args.file else settings.leads_dir / "latest.json"
+    try:
+        leads = json.loads(path.read_text(encoding="utf-8")).get("leads", [])
+    except (OSError, json.JSONDecodeError, AttributeError):
+        print(0)
+        return 0
+    if not settings.db_path.exists():
+        print(len(leads))
+        return 0
+    with Store.open(settings.db_path, dry_run=True) as store:
+        pending = 0
+        for item in leads:
+            mid = str(item.get("mention_id", ""))
+            lead = store.get_lead(mid)
+            if not store.has_draft(mid) and (lead is None or lead.status == "new"):
+                pending += 1
+    print(pending)
+    return 0
+
+
+def cmd_notify(args: argparse.Namespace, settings: Settings) -> int:
+    """Send one plain line to Telegram (used by the PowerShell scripts)."""
+    client = TelegramClient(settings, dry_run=args.dry_run)
+    client.send(html.escape(args.text, quote=False), kind="notice")
     return 0
 
 
@@ -303,6 +355,20 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--days", type=float, default=7, help="window in days (default 7)")
     p.add_argument("--no-send", action="store_true", help="print only, don't send to Telegram")
     p.set_defaults(func=cmd_stats)
+
+    p = sub.add_parser("doctor", parents=[common], help="check .env, Telegram, IMAP, F5Bot, DB and claude")
+    p.set_defaults(func=cmd_doctor)
+
+    p = sub.add_parser("housekeeping", parents=[common], help="delete old leads/drafts/unparsed files")
+    p.set_defaults(func=cmd_housekeeping)
+
+    p = sub.add_parser("drafts-pending", parents=[common], help="print how many exported leads still need a draft")
+    p.add_argument("--file", help="leads JSON (default data/leads/latest.json)")
+    p.set_defaults(func=cmd_drafts_pending)
+
+    p = sub.add_parser("notify", parents=[common], help="send one line of text to Telegram")
+    p.add_argument("--text", required=True)
+    p.set_defaults(func=cmd_notify)
 
     p = sub.add_parser("telegram-test", parents=[common], help='send "Reddit Radar connected" to Telegram')
     p.set_defaults(func=cmd_telegram_test)

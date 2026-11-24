@@ -42,7 +42,7 @@ DROPPED = "Dropped"
 
 def normalize(text: str) -> str:
     """Lowercase, drop punctuation, collapse whitespace. 'SurveySparrow's' -> 'surveysparrow s'."""
-    lowered = text.lower().replace("’", "'").replace("‘", "'")
+    lowered = text.lower().replace("\u2019", "'").replace("\u2018", "'")
     lowered = re.sub(r"[^a-z0-9]+", " ", lowered)
     return re.sub(r"\s+", " ", lowered).strip()
 

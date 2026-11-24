@@ -10,7 +10,7 @@ Claude Code updates this after each stage. Record the date, what was built, any 
 | 4 F5Bot email ingest | built on synthetic emails (real `.eml` check pending) | 2026-11-25 | IMAP reader, format-tolerant parser, `scan`, `ingest-eml`, throttled inbox warning, pause check. |
 | 5 Claude reply drafts | done (live Telegram check pending) | 2026-11-25 | Draft validation, mention ratio, `send-drafts`, README drafting section. |
 | 6 Feedback + stats | done (real taps check pending) | 2026-11-25 | Button taps -> lead status, /stats /pause /resume, weekly stats with per-keyword quality, ratio from tap data. |
-| 7 Scheduling + ops | not started | | |
+| 7 Scheduling + ops | done (unattended cycle check pending) | 2026-11-25 | PowerShell wrappers, task registration, headless drafting, `doctor`, housekeeping, README. |
 
 ## Background
 
@@ -64,9 +64,19 @@ Reddit shut down public RSS feeds on Nov 13, 2026, stopped accepting new API acc
 - Mention ratio (export + send-drafts) now uses tap data via `Store.reply_stats`: replies = leads marked replied in the window; Elvan mentions = posted drafts naming Elvan.
 - "Replied" on a **draft** message sets `drafts.posted = 1` (matched by the stored `message_id`; for drafts resent from `delivery_failures/`, by the "Mentions Elvan:" text). Tapping another button on the same draft message sets it back to 0. "Replied" on an alert only changes the lead status.
 
+### Stage 7 (2026-11-25)
+- Built: `scripts/run_scan.ps1`, `scripts/run_drafts.ps1`, `scripts/run_radar.ps1` (generic wrapper used by the feedback and stats tasks), `scripts/register_tasks.ps1` (4 tasks, Interactive logon as the current user, WakeToRun, StartWhenAvailable, IgnoreNew), `radar/doctor.py` (`.env`, Telegram `getMe`, IMAP login, F5Bot email in last 7 days, DB writable, `claude` on PATH), `radar/housekeeping.py` (leads/drafts > 30 days, `data/unparsed/` > 14 days, `tasks.log` rotation; runs after every scan and as `radar housekeeping`), CLI `doctor`, `housekeeping`, `drafts-pending`, `notify`, full `README.md`.
+- **Headless drafting command** (flags checked against `claude --help`, Claude Code 2.1.116):
+  `claude -p "/draft-replies data/leads/latest.json" --allowedTools "Read,Write"`
+  started with `Start-Process` (stdout -> `data/logs/claude_drafts.log`), killed after 10 minutes. The script resolves `claude.exe` or `claude.cmd`, since npm installs a `.cmd` shim and `Start-Process` can't run the `.ps1` shim.
+- Verified on this PC with the placeholder `.env`: all 4 scripts parse in Windows PowerShell 5.1; `run_scan.ps1` exits 0 and queues one inbox warning; `run_drafts.ps1` skips with no undrafted leads; with leads pending and `claude` hidden from PATH it queues "Drafts skipped: run /draft-replies manually" and exits 0; `doctor` fails exactly the 4 credential checks and passes DB + claude.
+- **Not run:** `register_tasks.ps1` (needs Administrator and changes Task Scheduler) and a real headless `claude -p` run (spends Claude usage). Both are Aman's manual check.
+
 ## Deviations from spec
 
 - Stage 1: Windows Python has no tz database and `tzdata` isn't an allowed dependency, so `Settings.zoneinfo()` falls back to a fixed offset for `Asia/Calcutta` / `Asia/Kolkata` / `UTC` (no DST, so it's exact). Other zones fall back to UTC with a warning. Installing `tzdata` would remove the need for this.
+- Stage 7: two helper commands not in the spec: `drafts-pending` (prints how many leads in `latest.json` still need a draft; `run_drafts.ps1` uses it to skip) and `notify --text` (one Telegram line from the scripts). There is also `run_radar.ps1`, because the spec's `Radar_Feedback` / `Radar_Weekly_Stats` tasks need a wrapper to find the venv.
+- Stage 7: `doctor` exits 1 if any check fails, so it can gate scripts. Under `--dry-run` the DB write check is skipped.
 - Stage 6: the per-keyword "not-relevant rate" is not_relevant / tapped (leads you actually tapped). A separate "noise" column (share of a keyword's mentions that scored Low or were dropped, so never reached you) shows keywords that flood the inbox without producing taps.
 - Stage 6: `stats` prints a plain-text copy to the console and sends the HTML version to Telegram (`--no-send` to skip sending).
 - Stage 5: `validate` also flags unicode arrows (CLAUDE.md says write "->"). Bare domains other than `elvan.ai` count as links (e.g. `survicate.com`), and so does `https://elvan.ai`. A "competitor price" is a `$<digit>` in the same sentence as a competitor name from `signals.yaml`.
@@ -89,6 +99,16 @@ Reddit shut down public RSS feeds on Nov 13, 2026, stopped accepting new API acc
 - Stage 1: `Mention.from_url` stores a canonical `https://www.reddit.com/...` URL (query string dropped, `old.`/`np.` hosts normalized).
 
 ## Known issues
+
+1. **F5Bot parser not yet checked against real emails.** It was built on synthetic emails (stage 4 notes). First thing to do once alerts arrive: save 3 to 5 `.eml` files into `tests/fixtures/f5bot/` and run `ingest-eml --dry-run` plus the parser tests.
+2. **Placeholder `.env`.** Every secret is `REPLACE_ME`. Telegram, IMAP and `F5BOT_SENDER` must be filled in. `doctor` lists what's missing.
+3. **Delete `data/` before going live**, so placeholder-run messages in `data/delivery_failures/` aren't resent.
+4. Tasks run only while you're logged in (Interactive logon, needed by Claude Code) and while the PC is on or able to wake.
+5. `-WindowStyle Hidden` still flashes a console window briefly when a task starts. That's Windows behaviour for `powershell.exe` tasks.
+6. Windows PowerShell 5.1 writes a UTF-8 BOM at the start of `data/logs/tasks.log`. Harmless.
+7. No `tzdata` dependency: only `Asia/Calcutta`/`Asia/Kolkata`/`UTC` work on Windows without it (stage 1 deviation).
+8. Scoring was tuned only on the 26 synthetic sample mentions. Expect to adjust `signals.yaml` after the first week of real data (see tuning notes).
+9. The Balram question (Klaviyo/Mailchimp/Braze/HubSpot integrations) is still open; `REPLY_RULES.md` keeps them under "Never claim".
 
 ## Tuning notes (false positives, keyword changes)
 

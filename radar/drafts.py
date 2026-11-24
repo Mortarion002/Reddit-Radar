@@ -24,13 +24,13 @@ MENTION_RATIO = 0.2  # at most 1 in 5 replies names Elvan
 RATIO_WINDOW_DAYS = 7
 SENT_FILES_KEY = "sent_draft_files"
 
-_DASHES = re.compile("[—–]")  # em dash, en dash
-_ARROWS = re.compile("[←-⇿⟰-⟿⤀-⥿]")
+_DASHES = re.compile("[\u2014\u2013]")  # em dash, en dash
+_ARROWS = re.compile("[\u2190-\u21ff\u27f0-\u27ff\u2900-\u297f]")
 _EMOJI = re.compile(
-    "[\U0001f000-\U0001faff\U0001f1e6-\U0001f1ff☀-➿⬀-⯿〰〽㊗㊙️‍]"
+    "[\U0001f000-\U0001faff\U0001f1e6-\U0001f1ff\u2600-\u27bf\u2b00-\u2bff\u3030\u303d\u3297\u3299\ufe0f\u200d]"
 )
 _HASHTAG = re.compile(r"(?<![\w&/#])#[A-Za-z][\w-]*")
-_DISCLOSURE = re.compile(r"\bi(?:['’]m| am) on the elvan team\b", re.IGNORECASE)
+_DISCLOSURE = re.compile(r"\bi(?:['\u2019]m| am) on the elvan team\b", re.IGNORECASE)
 _ELVAN = re.compile(r"\belvan\b", re.IGNORECASE)
 _PRICE = re.compile(r"\$\s?\d")
 _URLS = re.compile(

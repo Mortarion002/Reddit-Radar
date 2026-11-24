@@ -48,18 +48,18 @@ def test_reply_rules_example_passes():
     assert validate(sample.drafts[0], COMPETITORS) == []
 
 
-@pytest.mark.parametrize("dash", ["—", "–"])
+@pytest.mark.parametrize("dash", ["\u2014", "\u2013"])
 def test_dashes(dash):
     assert "em/en dash" in validate(d(GOOD.replace(", not", f" {dash} not")), COMPETITORS)
 
 
 def test_emoji():
     assert "emoji" in validate(d(GOOD + " \U0001F642"), COMPETITORS)
-    assert "emoji" in validate(d(GOOD + " ✅"), COMPETITORS)
+    assert "emoji" in validate(d(GOOD + " \u2705"), COMPETITORS)
 
 
 def test_unicode_arrow():
-    assert any("arrow" in i for i in validate(d(GOOD.replace("Send it", "Then → send it")), COMPETITORS))
+    assert any("arrow" in i for i in validate(d(GOOD.replace("Send it", "Then \u2192 send it")), COMPETITORS))
 
 
 def test_hashtag():
@@ -76,7 +76,7 @@ def test_too_long_and_too_short():
 def test_elvan_without_disclosure():
     text = GOOD + " Elvan does this with a Zendesk app."
     assert any("without" in i for i in validate(d(text, elvan=True), COMPETITORS))
-    ok = GOOD + " Full disclosure, I’m on the Elvan team and we do this."
+    ok = GOOD + " Full disclosure, I\u2019m on the Elvan team and we do this."
     assert validate(d(ok, elvan=True), COMPETITORS) == []
 
 
@@ -196,7 +196,7 @@ def test_mention_allowed_when_ratio_has_room(settings):
 def test_bad_draft_flagged(settings):
     store, tg = Store.memory(), FakeTelegram()
     data = json.loads(SAMPLE.read_text(encoding="utf-8"))
-    data["drafts"][1]["draft"] = data["drafts"][1]["draft"].replace(", not the next day,", " — not the next day —")
+    data["drafts"][1]["draft"] = data["drafts"][1]["draft"].replace(", not the next day,", " \u2014 not the next day \u2014")
     _install(settings, text=json.dumps(data))
     send_drafts(_ctx(settings, store, tg))
     assert tg.sent[1]["text"].startswith("<b>NEEDS EDIT: em/en dash</b>")
