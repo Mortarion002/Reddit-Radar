@@ -57,9 +57,9 @@ python -m radar import --file tests/fixtures/mentions_sample.json   # should rep
 Aman reads the High/Medium table and asks himself whether he'd reply to these. Any disagreement goes in `docs/PROGRESS.md` under "Tuning notes" and gets fixed in `signals.yaml`.
 
 ## Acceptance
-- [ ] 20+ scorer tests pass, and all other tests pass
-- [ ] All keywords live in YAML
-- [ ] Aman reviewed the leads table
-- [ ] `docs/PROGRESS.md` updated
+- [x] 20+ scorer tests pass, and all other tests pass
+- [x] All keywords live in YAML
+- [ ] Aman reviewed the leads table (pending)
+- [x] `docs/PROGRESS.md` updated
 
 Commit: `stage 2: sqlite store and signal scoring`

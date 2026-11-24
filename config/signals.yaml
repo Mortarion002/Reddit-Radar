@@ -1,18 +1,30 @@
 # Reddit Radar signal config. All scoring keywords live here, not in code.
-# Matching is word-boundary and case-insensitive on normalized text, with plurals handled.
+# Matching is word-boundary and case-insensitive on normalized text, with plurals handled
+# ("nps tool" also matches "NPS tools"). Punctuation is ignored ("elvan.ai" == "elvan ai").
 # After editing, run: python -m radar rescore --days 7
 
 competitors:
   priority: [survicate, surveysparrow, "survey sparrow", simplesat]
   tracked: [qualtrics, medallia, asknicely, retently, zonka, typeform, surveymonkey, hotjar, delighted, nicereply]
+# Competitor names that are also everyday words. They only count as a competitor when the
+# text also has a product term, a generic feedback word or a Delighted fallout phrase.
+ambiguous_competitors: [delighted]
 brand: [elvan, elvan.ai, getelvan]
 product_terms: [nps, csat, ces, enps, "net promoter", "customer satisfaction score", "pmf survey", "sean ellis", "feedback tool", "survey tool", "survey software", "feedback software", "voice of customer", "post-purchase survey"]
+# Words that give feedback context but are too common to qualify a lead on their own.
+# A lead whose only context comes from these gets the -15 generic penalty.
+generic_terms: [survey, feedback, "customer feedback", "feedback form", questionnaire]
 integrations: [zendesk, klaviyo, mailchimp, braze, hubspot, shopify, intercom, slack]
-request_phrases: ["looking for", "recommend", "what do you use", "what are you using", "any good", "best tool", "best way to", "suggestions for", "is there a tool", "anyone using", "anyone tried"]
-switch_phrases: [alternative, alternatives, "switching from", "switch from", "moved away from", "replace", "replacement", "migrate from", "migrating"]
-pain_phrases: ["too expensive", "price increase", "pricing", "doubled", "response limit", "limits", "caps", "support is", "buggy", "clunky", "complicated", "hate", "frustrated", "cancel", "not worth"]
+request_phrases: ["looking for", "recommend", "recommendations", "what do you use", "what do you all use", "what do you guys use", "what are you using", "what are people using", "what is everyone using", "what's everyone using", "any good", "best tool", "best way to", "suggestions for", "is there a tool", "anyone using", "anyone tried", "which tool", "what tool", "what software", "options for"]
+switch_phrases: [alternative, alternatives, "switching from", "switch from", "moved away from", "moving away from", "replace", "replacement", "migrate from", "migrating", "moving to", "moving off"]
+pain_phrases: ["too expensive", "expensive", "price increase", "price hike", "pricing", "doubled", "double", "raised prices", "response limit", "limits", "caps", "support is", "buggy", "clunky", "complicated", "hate", "frustrated", "cancel", "not worth"]
 feedback_pain_phrases: ["response rate", "no one answers", "survey fatigue", "churn without", "don't know why customers", "after ticket", "post-ticket", "feedback loop"]
+delighted_fallout_phrases: [shutdown, "shut down", "shutting down", "shuts down", sunset, sunsetting, discontinued, "history", "export", "migrate", "lost our"]
+pmf_phrases: ["product market fit", "product-market fit", pmf, "sean ellis", "very disappointed"]
 promo_phrases: ["i built", "we built", "we launched", "i launched", "check out my", "roast my", "beta testers", "lifetime deal", "ltd", "waitlist"]
 job_phrases: ["[hiring]", "hiring", "job opening", "we're hiring", "for hire"]
 msp_terms: [connectwise, autotask, kaseya, msp]
+staffing_terms: ["staffing agency", "staffing firm", "recruitment agency", "recruiting agency"]
 enterprise_terms: ["fortune 500", "10,000 employees", "global rollout", "procurement", "rfp"]
+# A text "asks a question" if it contains "?" or its title or snippet starts with one of these.
+question_starts: [how, what, which, any, "is there"]
