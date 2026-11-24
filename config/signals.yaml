@@ -1,0 +1,18 @@
+# Reddit Radar signal config. All scoring keywords live here, not in code.
+# Matching is word-boundary and case-insensitive on normalized text, with plurals handled.
+# After editing, run: python -m radar rescore --days 7
+
+competitors:
+  priority: [survicate, surveysparrow, "survey sparrow", simplesat]
+  tracked: [qualtrics, medallia, asknicely, retently, zonka, typeform, surveymonkey, hotjar, delighted, nicereply]
+brand: [elvan, elvan.ai, getelvan]
+product_terms: [nps, csat, ces, enps, "net promoter", "customer satisfaction score", "pmf survey", "sean ellis", "feedback tool", "survey tool", "survey software", "feedback software", "voice of customer", "post-purchase survey"]
+integrations: [zendesk, klaviyo, mailchimp, braze, hubspot, shopify, intercom, slack]
+request_phrases: ["looking for", "recommend", "what do you use", "what are you using", "any good", "best tool", "best way to", "suggestions for", "is there a tool", "anyone using", "anyone tried"]
+switch_phrases: [alternative, alternatives, "switching from", "switch from", "moved away from", "replace", "replacement", "migrate from", "migrating"]
+pain_phrases: ["too expensive", "price increase", "pricing", "doubled", "response limit", "limits", "caps", "support is", "buggy", "clunky", "complicated", "hate", "frustrated", "cancel", "not worth"]
+feedback_pain_phrases: ["response rate", "no one answers", "survey fatigue", "churn without", "don't know why customers", "after ticket", "post-ticket", "feedback loop"]
+promo_phrases: ["i built", "we built", "we launched", "i launched", "check out my", "roast my", "beta testers", "lifetime deal", "ltd", "waitlist"]
+job_phrases: ["[hiring]", "hiring", "job opening", "we're hiring", "for hire"]
+msp_terms: [connectwise, autotask, kaseya, msp]
+enterprise_terms: ["fortune 500", "10,000 employees", "global rollout", "procurement", "rfp"]

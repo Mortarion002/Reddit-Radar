@@ -35,9 +35,9 @@ python -m radar config-check
 `config-check` should show your values with secrets masked, and say Telegram/IMAP are missing if you haven't filled them in yet. That's fine at this stage.
 
 ## Acceptance
-- [ ] Tests pass
-- [ ] `config-check` works and never prints a secret
-- [ ] No Reddit network code
-- [ ] `docs/PROGRESS.md` updated
+- [x] Tests pass
+- [x] `config-check` works and never prints a secret
+- [x] No Reddit network code
+- [x] `docs/PROGRESS.md` updated
 
 Commit: `stage 1: setup, config, logging and mention model`

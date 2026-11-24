@@ -1,0 +1,5 @@
+# Subreddit score bonuses (lowercase names, no r/ prefix) and a blocklist.
+# Matching on F5Bot happens across all of Reddit; subreddits only affect the score.
+bonus: {customersuccess: 8, zendesk: 8, saas: 6, customerservice: 6, startups: 4, productmanagement: 4, shopify: 3, ecommerce: 3, smallbusiness: 2, entrepreneur: 2}
+# Mentions from these subreddits are dropped (meme/NSFW subs where a keyword fires by accident).
+blocklist: []

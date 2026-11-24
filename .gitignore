@@ -32,3 +32,6 @@ reference/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# reference code (folder spelled 'refernce' locally)
+refernce/
