@@ -234,6 +234,46 @@ class TelegramClient:
                 log.info("Saved undelivered %s to %s", kind, path)
             return None
 
+    # ---- feedback (stage 6) ---------------------------------------------------
+
+    def get_updates(self, offset: int | None) -> list[dict[str, Any]]:
+        """New updates (button taps and messages). Never long-polls (timeout=0)."""
+        if not self.configured:
+            log.warning("Telegram not configured; no updates read")
+            return []
+        payload: dict[str, Any] = {"timeout": 0, "allowed_updates": ["message", "callback_query"]}
+        if offset is not None:
+            payload["offset"] = offset
+        result = self.call("getUpdates", payload)
+        return list(result) if isinstance(result, list) else []
+
+    def answer_callback(self, callback_id: str, text: str) -> bool:
+        if self.dry_run:
+            print(f"[dry-run] would answer callback: {text}")
+            return False
+        try:
+            self.call("answerCallbackQuery", {"callback_query_id": callback_id, "text": text})
+            return True
+        except TelegramError as exc:
+            log.warning("answerCallbackQuery failed: %s", exc)
+            return False
+
+    def edit_buttons(self, chat_id: str, message_id: int, buttons: Buttons) -> bool:
+        if self.dry_run:
+            print(f"[dry-run] would update buttons on message {message_id}")
+            return False
+        try:
+            self.call(
+                "editMessageReplyMarkup",
+                {"chat_id": chat_id, "message_id": message_id, "reply_markup": keyboard(buttons)},
+            )
+            return True
+        except TelegramError as exc:
+            if "message is not modified" in str(exc):
+                return True
+            log.warning("editMessageReplyMarkup failed: %s", exc)
+            return False
+
     # ---- failures --------------------------------------------------------------
 
     def preserve(self, text: str, buttons: Buttons | None, kind: str) -> Path:

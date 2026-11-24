@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import re
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -13,11 +14,13 @@ from .config import Settings, load_settings
 from .logger import setup_logging
 from .digest import RunSummary
 from .drafts import DraftsFileError, send_drafts
+from .feedback import run_feedback
 from .ingest import is_paused, run_ingest_eml, run_scan
 from .models import Lead
 from .pipeline import Context, process
 from .scorer import ScoringConfig, build_lead
 from .sources.sample import SampleError, load_mentions
+from .stats import compute_stats, format_stats
 from .store import Store
 from .telegram import TelegramClient
 
@@ -165,6 +168,33 @@ def cmd_send_drafts(args: argparse.Namespace, settings: Settings) -> int:
     return 0
 
 
+def cmd_feedback(args: argparse.Namespace, settings: Settings) -> int:
+    now = _now()
+    with Store.open(settings.db_path, dry_run=args.dry_run) as store:
+        result = run_feedback(_context(settings, store, args.dry_run, now))
+    prefix = "[dry-run] " if args.dry_run else ""
+    print(
+        f"{prefix}feedback: {result.updates} update(s), {len(result.statuses)} status change(s), "
+        f"commands: {', '.join(result.commands) or 'none'}"
+    )
+    for mention_id, status in result.statuses:
+        print(f"  {mention_id} -> {status}")
+    return 0
+
+
+def cmd_stats(args: argparse.Namespace, settings: Settings) -> int:
+    now = _now()
+    if not settings.db_path.exists():
+        print("no database yet; run scan or import first")
+        return 0
+    with Store.open(settings.db_path, dry_run=True) as store:
+        text = format_stats(compute_stats(store, args.days, now))
+    print(re.sub(r"<[^>]+>", "", text).replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">"))
+    if not args.no_send:
+        TelegramClient(settings, dry_run=args.dry_run).send(text, kind="stats")
+    return 0
+
+
 def cmd_telegram_test(args: argparse.Namespace, settings: Settings) -> int:
     client = TelegramClient(settings, dry_run=args.dry_run)
     if not client.configured and not args.dry_run:
@@ -265,6 +295,14 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("send-drafts", parents=[common], help="validate reply drafts and send them to Telegram")
     p.add_argument("--file", help="drafts JSON (default: newest unsent file in data/drafts/)")
     p.set_defaults(func=cmd_send_drafts)
+
+    p = sub.add_parser("feedback", parents=[common], help="read Telegram button taps and /stats /pause /resume")
+    p.set_defaults(func=cmd_feedback)
+
+    p = sub.add_parser("stats", parents=[common], help="weekly stats report (printed and sent to Telegram)")
+    p.add_argument("--days", type=float, default=7, help="window in days (default 7)")
+    p.add_argument("--no-send", action="store_true", help="print only, don't send to Telegram")
+    p.set_defaults(func=cmd_stats)
 
     p = sub.add_parser("telegram-test", parents=[common], help='send "Reddit Radar connected" to Telegram')
     p.set_defaults(func=cmd_telegram_test)

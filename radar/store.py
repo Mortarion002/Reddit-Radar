@@ -328,12 +328,37 @@ class Store:
         return int(cur.lastrowid)
 
     def reply_stats(self, since: datetime) -> tuple[int, int]:
-        """(replies posted, of which mention Elvan) since `since`, from drafts marked posted."""
-        row = self.conn.execute(
-            "SELECT COUNT(*), COALESCE(SUM(mentions_elvan), 0) FROM drafts WHERE posted = 1 AND sent_at >= ?",
+        """(replies, of which named Elvan) since `since`, from Aman's Telegram taps.
+
+        A reply is a lead marked "replied". An Elvan mention is a posted draft (Replied tapped on
+        the draft message) that names Elvan.
+        """
+        replies = self.conn.execute(
+            "SELECT COUNT(*) FROM leads WHERE status = 'replied' AND status_at >= ?", (iso(since),)
+        ).fetchone()[0]
+        mentions = self.conn.execute(
+            "SELECT COUNT(DISTINCT d.mention_id) FROM drafts d JOIN leads l ON l.mention_id = d.mention_id"
+            " WHERE d.posted = 1 AND d.mentions_elvan = 1 AND l.status = 'replied' AND l.status_at >= ?",
             (iso(since),),
-        ).fetchone()
-        return int(row[0]), int(row[1])
+        ).fetchone()[0]
+        return int(replies), int(mentions)
+
+    def set_draft_posted(self, message_id: int, posted: bool) -> int:
+        """Mark the draft carried by Telegram message `message_id` as posted (or not). Returns rows changed."""
+        with self.conn:
+            cur = self.conn.execute(
+                "UPDATE drafts SET posted = ? WHERE message_id = ?", (int(posted), message_id)
+            )
+        return cur.rowcount
+
+    def set_latest_draft_posted(self, mention_id: str, posted: bool) -> int:
+        """Fallback when the draft message was resent from delivery_failures and has no stored message_id."""
+        with self.conn:
+            cur = self.conn.execute(
+                "UPDATE drafts SET posted = ? WHERE id = (SELECT MAX(id) FROM drafts WHERE mention_id = ?)",
+                (int(posted), mention_id),
+            )
+        return cur.rowcount
 
     # ---- processed emails ----------------------------------------------------
 

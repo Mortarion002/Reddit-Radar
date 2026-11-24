@@ -28,10 +28,10 @@ Aman's taps on [Replied] [Skip] [Not relevant] update the lead status. That feed
 Tap each button type on real alerts, then run `python -m radar feedback`. The buttons should change. Send `/stats` to the bot and run `python -m radar stats`. Send `/pause`, run `scan` (it should skip), then `/resume`.
 
 ## Acceptance
-- [ ] Taps reflected in the DB and in Telegram
-- [ ] Stats report includes per-keyword quality
-- [ ] Pause/resume works
-- [ ] Tests pass
-- [ ] `docs/PROGRESS.md` updated
+- [ ] Taps reflected in the DB and in Telegram (pending: real bot; tested with mocks)
+- [x] Stats report includes per-keyword quality
+- [x] Pause/resume works (tested)
+- [x] Tests pass
+- [x] `docs/PROGRESS.md` updated
 
 Commit: `stage 6: telegram feedback buttons and weekly stats`

@@ -9,7 +9,7 @@ Claude Code updates this after each stage. Record the date, what was built, any 
 | 3 Telegram + export | done (real Telegram check pending) | 2026-11-25 | Telegram client with failure preservation + DNS fallback, alerts/digest, leads export, shared pipeline, `telegram-test`. |
 | 4 F5Bot email ingest | built on synthetic emails (real `.eml` check pending) | 2026-11-25 | IMAP reader, format-tolerant parser, `scan`, `ingest-eml`, throttled inbox warning, pause check. |
 | 5 Claude reply drafts | done (live Telegram check pending) | 2026-11-25 | Draft validation, mention ratio, `send-drafts`, README drafting section. |
-| 6 Feedback + stats | not started | | |
+| 6 Feedback + stats | done (real taps check pending) | 2026-11-25 | Button taps -> lead status, /stats /pause /resume, weekly stats with per-keyword quality, ratio from tap data. |
 | 7 Scheduling + ops | not started | | |
 
 ## Background
@@ -59,9 +59,16 @@ Reddit shut down public RSS feeds on Nov 13, 2026, stopped accepting new API acc
 - Sent files are tracked in `state.sent_draft_files` (JSON list of file names).
 - **Pending (Aman):** ask Balram about native Klaviyo/Mailchimp/Braze/HubSpot integrations and update the "Never claim" line in `REPLY_RULES.md`. Until then it stays as written (none of them claimed).
 
+### Stage 6 (2026-11-25)
+- Built: `radar/feedback.py` (`getUpdates` with `offset = last_update_id + 1`, `timeout=0`; callbacks `s:{status}:{short_id}` -> `leads.status`/`status_at`, `answerCallbackQuery` "Marked replied/skipped/not relevant", `editMessageReplyMarkup` marking the chosen button with `* `; `/stats`, `/pause`, `/resume`; other chats ignored; `last_update_id` saved after every update; one bad update never blocks the rest), `radar/stats.py` (runs, emails, mentions, parse errors; leads by tier/signal/subreddit/keyword; status counts; precision for High and Medium; per-keyword mentions / sent / not-relevant rate / noise; top 5 terms behind not-relevant leads; replies posted and Elvan mentions), CLI `feedback` and `stats [--days] [--no-send]`, Telegram `get_updates` / `answer_callback` / `edit_buttons`.
+- Mention ratio (export + send-drafts) now uses tap data via `Store.reply_stats`: replies = leads marked replied in the window; Elvan mentions = posted drafts naming Elvan.
+- "Replied" on a **draft** message sets `drafts.posted = 1` (matched by the stored `message_id`; for drafts resent from `delivery_failures/`, by the "Mentions Elvan:" text). Tapping another button on the same draft message sets it back to 0. "Replied" on an alert only changes the lead status.
+
 ## Deviations from spec
 
 - Stage 1: Windows Python has no tz database and `tzdata` isn't an allowed dependency, so `Settings.zoneinfo()` falls back to a fixed offset for `Asia/Calcutta` / `Asia/Kolkata` / `UTC` (no DST, so it's exact). Other zones fall back to UTC with a warning. Installing `tzdata` would remove the need for this.
+- Stage 6: the per-keyword "not-relevant rate" is not_relevant / tapped (leads you actually tapped). A separate "noise" column (share of a keyword's mentions that scored Low or were dropped, so never reached you) shows keywords that flood the inbox without producing taps.
+- Stage 6: `stats` prints a plain-text copy to the console and sends the HTML version to Telegram (`--no-send` to skip sending).
 - Stage 5: `validate` also flags unicode arrows (CLAUDE.md says write "->"). Bare domains other than `elvan.ai` count as links (e.g. `survicate.com`), and so does `https://elvan.ai`. A "competitor price" is a `$<digit>` in the same sentence as a competitor name from `signals.yaml`.
 - Stage 5: a draft whose lead isn't in the DB is still sent, with a minimal header.
 - Stage 4: `ParseError` is also raised for an email with no Reddit match, no HN/Lobsters match **and no links** (stricter than spec), so an unexpected F5Bot email lands in `data/unparsed/` instead of being silently ignored. HN-only emails are recorded as `status='no_reddit'` and marked seen.

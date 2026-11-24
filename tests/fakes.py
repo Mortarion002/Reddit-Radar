@@ -71,9 +71,26 @@ class FakeTelegram:
         self._next += 1
         return self._next
 
+    updates: list[dict[str, Any]] = field(default_factory=list)
+    offsets: list[Any] = field(default_factory=list)
+    answers: list[str] = field(default_factory=list)
+    edits: list[tuple[str, int, Any]] = field(default_factory=list)
+
     def resend_failures(self):
         self.resends += 1
         return 0, 0
+
+    def get_updates(self, offset):
+        self.offsets.append(offset)
+        return [u for u in self.updates if offset is None or u["update_id"] >= offset]
+
+    def answer_callback(self, callback_id, text):
+        self.answers.append(text)
+        return True
+
+    def edit_buttons(self, chat_id, message_id, buttons):
+        self.edits.append((chat_id, message_id, buttons))
+        return True
 
     def kinds(self) -> list[str]:
         return [s["kind"] for s in self.sent]

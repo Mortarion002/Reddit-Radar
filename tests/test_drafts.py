@@ -112,13 +112,23 @@ def test_ratio_math():
 
 
 def _posted(store: Store, n: int, elvan: int) -> None:
+    """n replied leads (tapped Replied), `elvan` of them via a posted draft naming Elvan."""
+    from radar.scorer import ScoringConfig, build_lead
+    from radar.config import load_settings
+    from .helpers import mention
+
+    cfg = ScoringConfig.from_settings(load_settings(environ={}, warn=False))
     for i in range(n):
-        store.save_draft(f"post:x{i:04d}", i < elvan, "t", "", NOW, NOW, None)
-    store.conn.execute("UPDATE drafts SET posted = 1")
-    store.conn.commit()
+        m = mention("What do you use for NPS surveys?", sub="CustomerSuccess")
+        store.upsert_mentions([m], now=NOW)
+        store.save_lead(build_lead(m, cfg, NOW))
+        store.set_status(m.mention_id, "replied", NOW)
+        if i < elvan:
+            store.save_draft(m.mention_id, True, "t", "", NOW, NOW, 9000 + i)
+            store.set_draft_posted(9000 + i, True)
 
 
-def test_ratio_ok_uses_posted_replies():
+def test_ratio_ok_uses_replied_taps():
     store = Store.memory()
     _posted(store, 6, elvan=1)
     assert not ratio_ok(store, 1, 1, NOW)
