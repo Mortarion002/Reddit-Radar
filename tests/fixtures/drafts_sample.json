@@ -1,0 +1,24 @@
+{
+  "_note": "synthetic test data",
+  "source_leads_file": "data/leads/2026-11-25_1130.json",
+  "drafts": [
+    {
+      "mention_id": "post:1q2w3e",
+      "mentions_elvan": true,
+      "draft": "For just NPS plus post-ticket CSAT you probably don't need a full research suite anymore. I'd compare on cost per response at your volume and whether it connects to your helpdesk natively, since that's usually what drives the bill. Simplesat is solid if you live in Zendesk. Full disclosure, I'm on the Elvan team: we do NPS and CSAT with AI summaries, 1,000 responses for $49 a month, with a native Zendesk app. Whatever you pick, keep the same question wording so your NPS trend doesn't reset. How many responses a quarter are you at?",
+      "notes": "Mentions Elvan; ratio at 0/0 before this. Simplesat pitched as fair alternative."
+    },
+    {
+      "mention_id": "post:1x2c3v",
+      "mentions_elvan": false,
+      "draft": "A 4% response rate on email CSAT usually comes down to timing and friction. Send it within an hour of the solve, not the next day, while the conversation is still fresh. Put the one rating question right in the email body so a single click counts as a response, and ask the follow-up only after they rate. Also check how many of those emails land in promotions or spam. What helpdesk are you on?",
+      "notes": ""
+    },
+    {
+      "mention_id": "comment:p4o5i6u",
+      "mentions_elvan": false,
+      "draft": "",
+      "notes": "Skipped: happy Simplesat user, nothing to add."
+    }
+  ]
+}

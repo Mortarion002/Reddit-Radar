@@ -39,10 +39,10 @@ Ask Balram whether Elvan has native Klaviyo, Mailchimp, Braze or HubSpot integra
 5. Add an em dash to one draft in the JSON, remove the file from the sent list (or copy it under a new name), and resend. It should arrive flagged NEEDS EDIT.
 
 ## Acceptance
-- [ ] Drafts arrive copyable on Telegram
-- [ ] A bad draft arrives flagged
-- [ ] Ratio enforcement works
-- [ ] Tests pass
-- [ ] `docs/PROGRESS.md` updated
+- [ ] Drafts arrive copyable on Telegram (pending: real bot token; format tested offline)
+- [x] A bad draft arrives flagged (tested)
+- [x] Ratio enforcement works
+- [x] Tests pass
+- [x] `docs/PROGRESS.md` updated
 
 Commit: `stage 5: claude code reply drafts and send-drafts`

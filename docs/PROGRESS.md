@@ -8,7 +8,7 @@ Claude Code updates this after each stage. Record the date, what was built, any 
 | 2 Storage + scoring | done (awaiting Aman's leads review) | 2026-11-25 | SQLite store with migrations, scorer, `import` / `leads` / `rescore`, 26-mention synthetic sample. |
 | 3 Telegram + export | done (real Telegram check pending) | 2026-11-25 | Telegram client with failure preservation + DNS fallback, alerts/digest, leads export, shared pipeline, `telegram-test`. |
 | 4 F5Bot email ingest | built on synthetic emails (real `.eml` check pending) | 2026-11-25 | IMAP reader, format-tolerant parser, `scan`, `ingest-eml`, throttled inbox warning, pause check. |
-| 5 Claude reply drafts | not started | | |
+| 5 Claude reply drafts | done (live Telegram check pending) | 2026-11-25 | Draft validation, mention ratio, `send-drafts`, README drafting section. |
 | 6 Feedback + stats | not started | | |
 | 7 Scheduling + ops | not started | | |
 
@@ -51,9 +51,19 @@ Reddit shut down public RSS feeds on Nov 13, 2026, stopped accepting new API acc
 - What the parser actually relies on: the order of links. Each link to a Reddit permalink (after unwrapping `?u=` / `?url=` / `?q=` style redirects) starts a match: link text = title, the text up to the next link = snippet, and an optional `Keyword:` line. HN/Lobsters links are skipped (logged at debug). Other links end the current match. Section headers, footer lines and `--` separators are stripped from snippets.
 - **When real emails arrive:** drop them in `tests/fixtures/f5bot/`, run `python -m radar ingest-eml --dir tests/fixtures/f5bot --dry-run`, and check the titles and snippets. `tests/test_f5bot_parser.py::test_real_fixture_parses` runs on every real file automatically, and `expected.json` (see the README there) pins exact counts and fields.
 
+### Stage 5 (2026-11-25)
+- Checked `.claude/commands/draft-replies.md` and `docs/REPLY_RULES.md`: both already use `mention_id` and the right paths. Not changed.
+- Built: `radar/drafts.py` (`load_drafts`, `validate`, `allowed_mentions`, `ratio_ok`, `send_drafts`), CLI `send-drafts [--file] [--dry-run]`, `README.md` with the "Drafting replies" section, `tests/fixtures/drafts_sample.json`.
+- Schema v3 adds `drafts.message_id` (the Telegram message carrying the draft), so stage 6 can tell a "Replied" tap on a draft from one on an alert.
+- Ratio: `allowed = (replies_7d + batch) // 5 - elvan_mentions_7d`, capped to the batch, counting only drafts marked posted. Drafts naming Elvan get the allowance in file order; the rest are flagged `NEEDS EDIT: over mention ratio, remove Elvan`.
+- Sent files are tracked in `state.sent_draft_files` (JSON list of file names).
+- **Pending (Aman):** ask Balram about native Klaviyo/Mailchimp/Braze/HubSpot integrations and update the "Never claim" line in `REPLY_RULES.md`. Until then it stays as written (none of them claimed).
+
 ## Deviations from spec
 
 - Stage 1: Windows Python has no tz database and `tzdata` isn't an allowed dependency, so `Settings.zoneinfo()` falls back to a fixed offset for `Asia/Calcutta` / `Asia/Kolkata` / `UTC` (no DST, so it's exact). Other zones fall back to UTC with a warning. Installing `tzdata` would remove the need for this.
+- Stage 5: `validate` also flags unicode arrows (CLAUDE.md says write "->"). Bare domains other than `elvan.ai` count as links (e.g. `survicate.com`), and so does `https://elvan.ai`. A "competitor price" is a `$<digit>` in the same sentence as a competitor name from `signals.yaml`.
+- Stage 5: a draft whose lead isn't in the DB is still sent, with a minimal header.
 - Stage 4: `ParseError` is also raised for an email with no Reddit match, no HN/Lobsters match **and no links** (stricter than spec), so an unexpected F5Bot email lands in `data/unparsed/` instead of being silently ignored. HN-only emails are recorded as `status='no_reddit'` and marked seen.
 - Stage 4: emails that fail to parse are recorded (`status='parse_error'`) so they aren't refetched, but they are **not** marked `\Seen`, so they stay visible in Gmail.
 - Stage 4: the folder is opened read-only when `--dry-run` is set or `IMAP_MARK_SEEN=false`.

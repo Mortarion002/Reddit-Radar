@@ -49,6 +49,11 @@ MIGRATIONS: list[str] = [
     """
     CREATE TABLE short_ids(short_id TEXT PRIMARY KEY, mention_id TEXT NOT NULL);
     """,
+    # v3 (stage 5): which Telegram message carried each draft, so a "Replied" tap on it marks it posted
+    """
+    ALTER TABLE drafts ADD COLUMN message_id INTEGER;
+    CREATE INDEX idx_drafts_mention ON drafts(mention_id);
+    """,
 ]
 
 LEAD_STATUSES = ("new", "replied", "skipped", "not_relevant")
@@ -303,6 +308,24 @@ class Store:
 
     def has_draft(self, mention_id: str) -> bool:
         return self.conn.execute("SELECT 1 FROM drafts WHERE mention_id=? LIMIT 1", (mention_id,)).fetchone() is not None
+
+    def save_draft(
+        self,
+        mention_id: str,
+        mentions_elvan: bool,
+        draft_text: str,
+        notes: str,
+        created_at: datetime,
+        sent_at: datetime | None,
+        message_id: int | None,
+    ) -> int:
+        with self.conn:
+            cur = self.conn.execute(
+                "INSERT INTO drafts(mention_id, created_at, mentions_elvan, draft_text, notes, sent_at, posted, message_id)"
+                " VALUES(?,?,?,?,?,?,0,?)",
+                (mention_id, iso(created_at), int(mentions_elvan), draft_text, notes, iso(sent_at), message_id),
+            )
+        return int(cur.lastrowid)
 
     def reply_stats(self, since: datetime) -> tuple[int, int]:
         """(replies posted, of which mention Elvan) since `since`, from drafts marked posted."""

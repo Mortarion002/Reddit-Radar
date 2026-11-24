@@ -12,6 +12,7 @@ from typing import Callable, Sequence
 from .config import Settings, load_settings
 from .logger import setup_logging
 from .digest import RunSummary
+from .drafts import DraftsFileError, send_drafts
 from .ingest import is_paused, run_ingest_eml, run_scan
 from .models import Lead
 from .pipeline import Context, process
@@ -142,6 +143,28 @@ def cmd_ingest_eml(args: argparse.Namespace, settings: Settings) -> int:
     return 0
 
 
+def cmd_send_drafts(args: argparse.Namespace, settings: Settings) -> int:
+    now = _now()
+    path = Path(args.file) if args.file else None
+    with Store.open(settings.db_path, dry_run=args.dry_run) as store:
+        try:
+            result = send_drafts(_context(settings, store, args.dry_run, now), path)
+        except DraftsFileError as exc:
+            print(f"send-drafts: {exc}")
+            return 2
+    prefix = "[dry-run] " if args.dry_run else ""
+    if result.path is None:
+        print(f"{prefix}no unsent drafts file in {settings.drafts_dir}")
+    elif result.already_sent:
+        print(f"{prefix}{result.path.name} was already sent; skipped")
+    else:
+        print(
+            f"{prefix}{result.path.name}: sent {result.sent} draft(s), {result.flagged} flagged NEEDS EDIT, "
+            f"{result.skipped_empty} skipped lead(s)"
+        )
+    return 0
+
+
 def cmd_telegram_test(args: argparse.Namespace, settings: Settings) -> int:
     client = TelegramClient(settings, dry_run=args.dry_run)
     if not client.configured and not args.dry_run:
@@ -238,6 +261,10 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("import", parents=[common], help="load mentions from a JSON file, score and store them")
     p.add_argument("--file", required=True, help="path to a mentions JSON file")
     p.set_defaults(func=cmd_import)
+
+    p = sub.add_parser("send-drafts", parents=[common], help="validate reply drafts and send them to Telegram")
+    p.add_argument("--file", help="drafts JSON (default: newest unsent file in data/drafts/)")
+    p.set_defaults(func=cmd_send_drafts)
 
     p = sub.add_parser("telegram-test", parents=[common], help='send "Reddit Radar connected" to Telegram')
     p.set_defaults(func=cmd_telegram_test)
