@@ -39,10 +39,10 @@ python -m radar import --file tests/fixtures/mentions_sample.json
 - Turn Wi-Fi off and import again (after deleting the DB). A file should appear in `data/delivery_failures/`. Wi-Fi back on, run `import` with an empty file. The failure should be resent.
 
 ## Acceptance
-- [ ] Real alerts and digest received
-- [ ] Failure preservation and resend work
-- [ ] Leads file valid
-- [ ] Tests pass
-- [ ] `docs/PROGRESS.md` updated
+- [ ] Real alerts and digest received (pending: needs the real bot token in `.env`)
+- [x] Failure preservation and resend work (tested offline; Wi-Fi-off check pending)
+- [x] Leads file valid
+- [x] Tests pass
+- [x] `docs/PROGRESS.md` updated
 
 Commit: `stage 3: telegram alerts, digest and leads export`

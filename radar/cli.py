@@ -11,10 +11,13 @@ from typing import Callable, Sequence
 
 from .config import Settings, load_settings
 from .logger import setup_logging
-from .models import Lead, Mention
+from .digest import RunSummary
+from .models import Lead
+from .pipeline import Context, process
 from .scorer import ScoringConfig, build_lead
 from .sources.sample import SampleError, load_mentions
 from .store import Store
+from .telegram import TelegramClient
 
 log = logging.getLogger("radar.cli")
 
@@ -67,20 +70,30 @@ def _age_label(hours: float) -> str:
     return f"{hours / 24:.0f}d"
 
 
-def score_and_store(store: Store, mentions: list[Mention], cfg: ScoringConfig, now: datetime) -> list[Lead]:
-    """Dedupe, store and score. Returns leads for the mentions not seen before."""
-    new = store.upsert_mentions(mentions, now=now)
-    leads = [build_lead(m, cfg, now) for m in new]
-    for lead in leads:
-        store.save_lead(lead)
-    return leads
+def _context(settings: Settings, store: Store, dry_run: bool, now: datetime) -> Context:
+    return Context(settings=settings, store=store, telegram=TelegramClient(settings, dry_run=dry_run), now=now, dry_run=dry_run)
 
 
-def _tier_summary(leads: list[Lead]) -> str:
-    counts = {t: 0 for t in ("High", "Medium", "Low", "Dropped")}
-    for lead in leads:
-        counts[lead.tier] = counts.get(lead.tier, 0) + 1
-    return ", ".join(f"{k} {v}" for k, v in counts.items())
+def _finish(store: Store, run_id: int, summary: RunSummary) -> None:
+    store.finish_run(
+        run_id,
+        emails_read=summary.emails_read,
+        mentions_found=summary.mentions_found,
+        new_mentions=summary.new_mentions,
+        leads_high=summary.high,
+        leads_medium=summary.medium,
+        errors=summary.errors,
+    )
+
+
+def _print_summary(summary: RunSummary, dry_run: bool) -> None:
+    prefix = "[dry-run] " if dry_run else ""
+    tiers = ", ".join(f"{t} {summary.tiers.get(t, 0)}" for t in ("High", "Medium", "Low", "Dropped"))
+    emails = f"{summary.emails_read} emails, " if summary.command != "import" else ""
+    print(
+        f"{prefix}{summary.command}: {emails}{summary.mentions_found} mentions, {summary.new_mentions} new. "
+        f"{tiers}. Hot alerts: {summary.alerts_sent}"
+    )
 
 
 def cmd_import(args: argparse.Namespace, settings: Settings) -> int:
@@ -90,20 +103,26 @@ def cmd_import(args: argparse.Namespace, settings: Settings) -> int:
     except (OSError, SampleError) as exc:
         log.error("import failed: %s", exc)
         return 2
-    cfg = ScoringConfig.from_settings(settings)
     with Store.open(settings.db_path, dry_run=args.dry_run) as store:
         run_id = store.start_run("import", now)
-        leads = score_and_store(store, mentions, cfg, now)
-        counts = {t: sum(1 for l in leads if l.tier == t) for t in ("High", "Medium")}
-        store.finish_run(
-            run_id,
-            mentions_found=len(mentions),
-            new_mentions=len(leads),
-            leads_high=counts["High"],
-            leads_medium=counts["Medium"],
-        )
-    prefix = "[dry-run] " if args.dry_run else ""
-    print(f"{prefix}loaded {len(mentions)} mentions, {len(leads)} new. {_tier_summary(leads)}")
+        summary = process(_context(settings, store, args.dry_run, now), mentions, RunSummary(command="import"))
+        _finish(store, run_id, summary)
+    _print_summary(summary, args.dry_run)
+    return 0
+
+
+def cmd_telegram_test(args: argparse.Namespace, settings: Settings) -> int:
+    client = TelegramClient(settings, dry_run=args.dry_run)
+    if not client.configured and not args.dry_run:
+        print("Telegram is not configured: set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in .env")
+        return 1
+    message_id = client.send("Reddit Radar connected", kind="test", preserve=False)
+    if args.dry_run:
+        return 0
+    if message_id is None:
+        print("Telegram test failed; see data/logs/radar.log")
+        return 1
+    print(f"sent (message_id {message_id})")
     return 0
 
 
@@ -181,6 +200,9 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("import", parents=[common], help="load mentions from a JSON file, score and store them")
     p.add_argument("--file", required=True, help="path to a mentions JSON file")
     p.set_defaults(func=cmd_import)
+
+    p = sub.add_parser("telegram-test", parents=[common], help='send "Reddit Radar connected" to Telegram')
+    p.set_defaults(func=cmd_telegram_test)
 
     p = sub.add_parser("leads", parents=[common], help="print stored leads as a table")
     p.add_argument("--tier", default="High,Medium", help="comma list, e.g. High,Medium (default)")

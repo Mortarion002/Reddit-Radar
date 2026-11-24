@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
-from .models import Lead, Mention
+from .models import Lead, Mention, short_id
 
 # Each entry upgrades the schema by one version. Never edit a shipped entry; append.
 MIGRATIONS: list[str] = [
@@ -44,6 +44,10 @@ MIGRATIONS: list[str] = [
         leads_high INTEGER, leads_medium INTEGER, errors TEXT
     );
     CREATE TABLE state(key TEXT PRIMARY KEY, value TEXT);
+    """,
+    # v2 (stage 3): short ids for Telegram callback data
+    """
+    CREATE TABLE short_ids(short_id TEXT PRIMARY KEY, mention_id TEXT NOT NULL);
     """,
 ]
 
@@ -127,6 +131,13 @@ class Store:
                     "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
                     (str(number),),
                 )
+        if 0 < version < 2:  # leads stored before short_ids existed
+            with self.conn:
+                ids = [r[0] for r in self.conn.execute("SELECT mention_id FROM leads")]
+                self.conn.executemany(
+                    "INSERT OR IGNORE INTO short_ids(short_id, mention_id) VALUES(?, ?)",
+                    [(short_id(mid), mid) for mid in ids],
+                )
 
     @property
     def schema_version(self) -> int:
@@ -202,6 +213,10 @@ class Store:
                     lead.competitor, lead.score, lead.tier, iso(lead.scored_at), lead.drop_reason,
                 ),
             )
+            self.conn.execute(
+                "INSERT OR IGNORE INTO short_ids(short_id, mention_id) VALUES(?, ?)",
+                (lead.short_id, lead.mention_id),
+            )
 
     def get_lead(self, mention_id: str) -> Lead | None:
         rows = self._lead_query("WHERE l.mention_id = ?", [mention_id])
@@ -254,6 +269,48 @@ class Store:
             self.conn.executemany(
                 f"UPDATE leads SET {column}=? WHERE mention_id=?", [(stamp, mid) for mid in mention_ids]
             )
+
+    def resolve_short_id(self, short: str) -> str | None:
+        row = self.conn.execute("SELECT mention_id FROM short_ids WHERE short_id=?", (short,)).fetchone()
+        return row[0] if row else None
+
+    def thread_alerted_since(self, post_id: str, since: datetime, exclude: str | None = None) -> bool:
+        """True if any lead in this thread was hot-alerted at or after `since`."""
+        row = self.conn.execute(
+            "SELECT 1 FROM leads l JOIN mentions m ON m.mention_id = l.mention_id"
+            " WHERE m.post_id = ? AND l.alerted_at IS NOT NULL AND l.alerted_at >= ? AND l.mention_id != ?"
+            " LIMIT 1",
+            (post_id, iso(since), exclude or ""),
+        ).fetchone()
+        return row is not None
+
+    def undigested_leads(self, since: datetime) -> list[Lead]:
+        """High and Medium leads received since `since` that no digest has covered yet."""
+        return self._lead_query(
+            "WHERE l.tier IN ('High', 'Medium') AND l.digested_at IS NULL AND m.received_at >= ?"
+            " ORDER BY l.score DESC, m.received_at DESC",
+            [iso(since)],
+        )
+
+    def exportable_leads(self, since: datetime, limit: int) -> list[Lead]:
+        """High and Medium leads with status new, no draft yet, received since `since`."""
+        return self._lead_query(
+            "WHERE l.tier IN ('High', 'Medium') AND l.status = 'new' AND m.received_at >= ?"
+            " AND NOT EXISTS (SELECT 1 FROM drafts d WHERE d.mention_id = l.mention_id)"
+            " ORDER BY l.score DESC, m.received_at DESC LIMIT ?",
+            [iso(since), limit],
+        )
+
+    def has_draft(self, mention_id: str) -> bool:
+        return self.conn.execute("SELECT 1 FROM drafts WHERE mention_id=? LIMIT 1", (mention_id,)).fetchone() is not None
+
+    def reply_stats(self, since: datetime) -> tuple[int, int]:
+        """(replies posted, of which mention Elvan) since `since`, from drafts marked posted."""
+        row = self.conn.execute(
+            "SELECT COUNT(*), COALESCE(SUM(mentions_elvan), 0) FROM drafts WHERE posted = 1 AND sent_at >= ?",
+            (iso(since),),
+        ).fetchone()
+        return int(row[0]), int(row[1])
 
     def tier_counts(self, mention_ids: Iterable[str]) -> dict[str, int]:
         ids = list(mention_ids)
