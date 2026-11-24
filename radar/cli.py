@@ -12,6 +12,7 @@ from typing import Callable, Sequence
 from .config import Settings, load_settings
 from .logger import setup_logging
 from .digest import RunSummary
+from .ingest import is_paused, run_ingest_eml, run_scan
 from .models import Lead
 from .pipeline import Context, process
 from .scorer import ScoringConfig, build_lead
@@ -111,6 +112,36 @@ def cmd_import(args: argparse.Namespace, settings: Settings) -> int:
     return 0
 
 
+def cmd_scan(args: argparse.Namespace, settings: Settings) -> int:
+    now = _now()
+    with Store.open(settings.db_path, dry_run=args.dry_run) as store:
+        if is_paused(store):
+            print("scan skipped: paused (send /resume to the bot)")
+            log.info("scan skipped: paused")
+            return 0
+        run_id = store.start_run("scan", now)
+        summary = run_scan(_context(settings, store, args.dry_run, now))
+        _finish(store, run_id, summary)
+    _print_summary(summary, args.dry_run)
+    for error in summary.errors:
+        print(f"  error: {error}")
+    return 0
+
+
+def cmd_ingest_eml(args: argparse.Namespace, settings: Settings) -> int:
+    folder = Path(args.dir)
+    if not folder.is_dir():
+        print(f"not a folder: {folder}")
+        return 2
+    now = _now()
+    with Store.open(settings.db_path, dry_run=args.dry_run) as store:
+        run_id = store.start_run("ingest-eml", now)
+        summary = run_ingest_eml(_context(settings, store, args.dry_run, now), folder)
+        _finish(store, run_id, summary)
+    _print_summary(summary, args.dry_run)
+    return 0
+
+
 def cmd_telegram_test(args: argparse.Namespace, settings: Settings) -> int:
     client = TelegramClient(settings, dry_run=args.dry_run)
     if not client.configured and not args.dry_run:
@@ -196,6 +227,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("config-check", parents=[common], help="print settings with secrets masked")
     p.set_defaults(func=cmd_config_check)
+
+    p = sub.add_parser("scan", parents=[common], help="read new F5Bot emails over IMAP and process them")
+    p.set_defaults(func=cmd_scan)
+
+    p = sub.add_parser("ingest-eml", parents=[common], help="parse saved F5Bot .eml files from a folder")
+    p.add_argument("--dir", required=True, help="folder with .eml files")
+    p.set_defaults(func=cmd_ingest_eml)
 
     p = sub.add_parser("import", parents=[common], help="load mentions from a JSON file, score and store them")
     p.add_argument("--file", required=True, help="path to a mentions JSON file")

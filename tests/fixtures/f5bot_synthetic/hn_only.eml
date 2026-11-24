@@ -1,0 +1,42 @@
+From: F5Bot <admin@f5bot.com>
+To: radar-placeholder@example.com
+Subject: F5Bot found something: nps software
+Date: Wed, 25 Nov 2026 03:00:00 +0000
+Message-ID: <hn_only@synthetic.f5bot.test>
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+ boundary="===============5500985164303103160=="
+
+--===============5500985164303103160==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+SYNTHETIC TEST EMAIL
+
+Hacker News Posts:
+Show HN: Open source NPS software
+https://news.ycombinator.com/item?id=41239999
+Keyword: nps software
+...self-hosted <b>NPS software</b>...
+
+
+--
+You are receiving this because you signed up at F5Bot.
+Unsubscribe: https://f5bot.com/unsubscribe?k=abc123
+
+--===============5500985164303103160==
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+<html><head><style>p{margin:0}</style></head><body><p>SYNTHETIC TEST EMAIL</p=
+><p><b>Hacker News Posts:</b></p><ul><li><a href=3D"https://f5bot.com/url?u=
+=3Dhttps%3A%2F%2Fnews.ycombinator.com%2Fitem%3Fid%3D41239999&amp;i=3D0&amp;h=
+=3D0f3a9c">Show HN: Open source NPS software</a><br>Keyword: <b>nps software<=
+/b><br><blockquote>...self-hosted <b>NPS software</b>...</blockquote></li></u=
+l><hr><p style=3D"font-size:11px;color:#888">You are receiving this because y=
+ou signed up at F5Bot. <a href=3D"https://f5bot.com/settings">Manage your key=
+words</a> | <a href=3D"https://f5bot.com/unsubscribe?k=3Dabc123">Unsubscribe<=
+/a></p></body></html>
+
+--===============5500985164303103160==--

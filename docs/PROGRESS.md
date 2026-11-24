@@ -7,7 +7,7 @@ Claude Code updates this after each stage. Record the date, what was built, any 
 | 1 Setup, config, models | done | 2026-11-25 | Skeleton, Settings, redacting logger, Mention + URL parsing, `config-check`. |
 | 2 Storage + scoring | done (awaiting Aman's leads review) | 2026-11-25 | SQLite store with migrations, scorer, `import` / `leads` / `rescore`, 26-mention synthetic sample. |
 | 3 Telegram + export | done (real Telegram check pending) | 2026-11-25 | Telegram client with failure preservation + DNS fallback, alerts/digest, leads export, shared pipeline, `telegram-test`. |
-| 4 F5Bot email ingest | not started | | |
+| 4 F5Bot email ingest | built on synthetic emails (real `.eml` check pending) | 2026-11-25 | IMAP reader, format-tolerant parser, `scan`, `ingest-eml`, throttled inbox warning, pause check. |
 | 5 Claude reply drafts | not started | | |
 | 6 Feedback + stats | not started | | |
 | 7 Scheduling + ops | not started | | |
@@ -37,9 +37,28 @@ Reddit shut down public RSS feeds on Nov 13, 2026, stopped accepting new API acc
 - With the placeholder `.env`, alerts and digests go straight to `data/delivery_failures/` without a network call. **Before going live, delete `data/` (or at least `data/delivery_failures/`) so test messages aren't resent to your phone.**
 - Tests run fully offline: `tests/conftest.py` has an autouse guard that blocks `requests`, sockets and `curl`/`nslookup`/`claude` subprocesses.
 
+### Stage 4 (2026-11-25)
+- Built: `radar/sources/f5bot_parser.py` (`parse_email`, `ParseError`, redirect unwrapping), `radar/sources/f5bot_mail.py` (`Mailbox`: `IMAP4_SSL` -> login -> select -> `UID SEARCH FROM "<sender>" SINCE <date>` -> `BODY.PEEK[]` -> `+FLAGS (\Seen)` after success), `radar/ingest.py` (`run_scan`, `run_ingest_eml`, unparsed handling, 6-hour throttled "F5Bot inbox unreachable" warning, pause check), CLI `scan` and `ingest-eml`. Schema unchanged.
+- **No real F5Bot emails were available.** The stage file says not to start without them; Aman asked for the whole project built with placeholder data, so the parser was built to be format-tolerant and tested on **synthetic** emails in `tests/fixtures/f5bot_synthetic/`, which follow the best-known F5Bot layout. They are not real F5Bot output.
+- **F5Bot format assumed by the synthetic fixtures (to confirm against real emails):**
+  - Subject: `F5Bot found something: <keyword>` (used only as the keyword fallback)
+  - From: `F5Bot <admin@f5bot.com>` (`.env` keeps `F5BOT_SENDER=REPLACE_ME` until you copy the real address)
+  - multipart/alternative, HTML preferred, plain text fallback
+  - sections headed `Reddit Posts (/r/sub/):`, `Reddit Comments (/r/sub/):`, `Hacker News Comments:`
+  - each match: `<a href="https://f5bot.com/url?u=<urlencoded reddit permalink>&i=..&h=..">thread title</a>`, then `Keyword: <b>kw</b>`, then a `<blockquote>` snippet
+  - comments: link text may start `Re: `; the URL has the comment id as the 6th path segment
+  - footer with settings/unsubscribe links on f5bot.com
+- What the parser actually relies on: the order of links. Each link to a Reddit permalink (after unwrapping `?u=` / `?url=` / `?q=` style redirects) starts a match: link text = title, the text up to the next link = snippet, and an optional `Keyword:` line. HN/Lobsters links are skipped (logged at debug). Other links end the current match. Section headers, footer lines and `--` separators are stripped from snippets.
+- **When real emails arrive:** drop them in `tests/fixtures/f5bot/`, run `python -m radar ingest-eml --dir tests/fixtures/f5bot --dry-run`, and check the titles and snippets. `tests/test_f5bot_parser.py::test_real_fixture_parses` runs on every real file automatically, and `expected.json` (see the README there) pins exact counts and fields.
+
 ## Deviations from spec
 
 - Stage 1: Windows Python has no tz database and `tzdata` isn't an allowed dependency, so `Settings.zoneinfo()` falls back to a fixed offset for `Asia/Calcutta` / `Asia/Kolkata` / `UTC` (no DST, so it's exact). Other zones fall back to UTC with a warning. Installing `tzdata` would remove the need for this.
+- Stage 4: `ParseError` is also raised for an email with no Reddit match, no HN/Lobsters match **and no links** (stricter than spec), so an unexpected F5Bot email lands in `data/unparsed/` instead of being silently ignored. HN-only emails are recorded as `status='no_reddit'` and marked seen.
+- Stage 4: emails that fail to parse are recorded (`status='parse_error'`) so they aren't refetched, but they are **not** marked `\Seen`, so they stay visible in Gmail.
+- Stage 4: the folder is opened read-only when `--dry-run` is set or `IMAP_MARK_SEEN=false`.
+- Stage 4: `ingest-eml` records files as `file:<name>` in `processed_emails` but never skips them, so the same folder can be re-parsed while debugging. Those rows don't affect the IMAP `SINCE` date.
+- Stage 4: after a successful scan the inbox-warning throttle resets, so the next outage warns straight away.
 - Stage 3: the digest lists undigested High/Medium leads that were *not* hot-alerted (Medium leads, plus High leads diverted by the thread rule). Hot-alerted leads are only counted in the summary, not listed again. A digest goes out only when the run produced new High/Medium leads or there are leftovers to list.
 - Stage 3: a lead is marked `alerted_at` even when the send failed, because the message is preserved and will be resent. Marking it avoids a duplicate alert.
 - Stage 3: the timestamped leads file is written only when there are leads; `latest.json` is refreshed on every run (possibly with an empty list) so it always reflects the DB.

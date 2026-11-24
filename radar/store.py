@@ -312,6 +312,37 @@ class Store:
         ).fetchone()
         return int(row[0]), int(row[1])
 
+    # ---- processed emails ----------------------------------------------------
+
+    def processed_uids(self, uids: Iterable[str]) -> set[str]:
+        wanted = list(uids)
+        done: set[str] = set()
+        for i in range(0, len(wanted), 500):
+            chunk = wanted[i : i + 500]
+            rows = self.conn.execute(
+                f"SELECT uid FROM processed_emails WHERE uid IN ({','.join('?' * len(chunk))})", chunk
+            )
+            done.update(r[0] for r in rows)
+        return done
+
+    def record_email(
+        self, uid: str, message_id: str, received_at: datetime | None, mentions_found: int, status: str
+    ) -> None:
+        with self.conn:
+            self.conn.execute(
+                "INSERT INTO processed_emails(uid, message_id, received_at, mentions_found, status)"
+                " VALUES(?,?,?,?,?) ON CONFLICT(uid) DO UPDATE SET message_id=excluded.message_id,"
+                " received_at=excluded.received_at, mentions_found=excluded.mentions_found, status=excluded.status",
+                (uid, message_id, iso(received_at), mentions_found, status),
+            )
+
+    def last_processed_email_at(self) -> datetime | None:
+        """Newest Date of an IMAP email we processed (files from ingest-eml don't count)."""
+        row = self.conn.execute(
+            "SELECT MAX(received_at) FROM processed_emails WHERE uid NOT LIKE 'file:%'"
+        ).fetchone()
+        return parse_dt(row[0]) if row and row[0] else None
+
     def tier_counts(self, mention_ids: Iterable[str]) -> dict[str, int]:
         ids = list(mention_ids)
         counts: dict[str, int] = {}

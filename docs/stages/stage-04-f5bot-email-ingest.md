@@ -49,11 +49,11 @@ python -m radar leads --tier High,Medium --days 3
 Check the Telegram alerts match real Reddit threads; click 2 or 3 links. Put a wrong app password in `.env` and run scan: there should be one warning on Telegram and no crash. Then restore the password.
 
 ## Acceptance
-- [ ] Parser built from real emails, with the format documented in PROGRESS.md
-- [ ] Live scan produces real leads on Telegram
-- [ ] Re-running scan doesn't reprocess emails
-- [ ] Bad credentials give a warning, not a crash
-- [ ] Tests pass
-- [ ] `docs/PROGRESS.md` updated
+- [ ] Parser built from real emails, with the format documented in PROGRESS.md (built on synthetic emails; real `.eml` check pending)
+- [ ] Live scan produces real leads on Telegram (pending: Gmail app password + bot token)
+- [x] Re-running scan doesn't reprocess emails (tested with mocked IMAP)
+- [x] Bad credentials give a warning, not a crash (tested with mocked IMAP)
+- [x] Tests pass
+- [x] `docs/PROGRESS.md` updated
 
 Commit: `stage 4: f5bot email ingest and live scan`
