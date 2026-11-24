@@ -1,0 +1,34 @@
+# secrets
+.env
+.env.*
+!.env.example
+
+# python
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# runtime data (db, logs, leads, drafts, failed sends, unparsed emails)
+data/
+*.db
+*.sqlite3
+*.log
+
+# claude code: keep commands, ignore personal settings
+.claude/settings.local.json
+
+# local only
+reference/
+
+# os
+.DS_Store
+Thumbs.db
+desktop.ini
