@@ -121,7 +121,7 @@ Reddit shut down public RSS feeds on Nov 13, 2026, stopped accepting new API acc
 ## Known issues
 
 1. **F5Bot parser checked against only 3 real emails**, all with the keyword `csat`, all Reddit (no HN/Lobsters) and one keyword group each. Add a multi-keyword email when one arrives. Watch the run summary for "Skipped hits". `.env` should use `F5BOT_SENDER=alerts@f5bot.com`.
-1a. **The real `.eml` fixtures contain your alert address and F5Bot's unsubscribe key** (`/disable-all?e=...&k=...`), which would let anyone turn off your alerts. Redact the key or gitignore `tests/fixtures/f5bot/*.eml` before committing them.
+1a. The real `.eml` fixtures were redacted before committing: recipient address and name -> `radar@example.com` / `Radar Test`, F5Bot unsubscribe key -> `REDACTEDKEY0`. Redact new fixtures the same way before committing them (the key lets anyone turn off your alerts).
 2. **Placeholder `.env`.** Every secret is `REPLACE_ME`. Telegram, IMAP and `F5BOT_SENDER` must be filled in. `doctor` lists what's missing.
 3. **Delete `data/` before going live**, so placeholder-run messages in `data/delivery_failures/` aren't resent.
 4. Tasks run only while you're logged in (Interactive logon, needed by Claude Code) and while the PC is on or able to wake.
