@@ -1,5 +1,5 @@
 # One Reddit Radar scan: read new F5Bot emails, score, alert, digest, export.
-# Used by the Radar_Scan scheduled task (every 30 min, 07:00 to 01:00 IST).
+# Used by the Radar_Scan scheduled task (09:00, 13:00, 17:00 and 19:15 IST).
 # Extra arguments are passed through, e.g. scripts\run_scan.ps1 --dry-run
 
 $ErrorActionPreference = "Continue"

@@ -1,5 +1,5 @@
 # Headless reply drafting: Claude Code runs /draft-replies on the latest leads, then send-drafts.
-# Used by the Radar_Drafts scheduled task (09:00 and 21:00 IST).
+# Used by the Radar_Drafts scheduled task (19:30 IST, so drafts are ready for the 20:00 reply session).
 #
 # - Skips when data\leads\latest.json has no undrafted leads.
 # - If `claude` is missing, fails or runs past 10 minutes: sends

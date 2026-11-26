@@ -26,7 +26,7 @@
 
 ## Daily routine once it's built
 
-- Alerts arrive on Telegram within about 30 minutes of an F5Bot email. Drafts arrive around 09:00 and 21:00 IST.
+- Alerts arrive after each scan (09:00, 13:00, 17:00, 19:15 IST). Drafts arrive by about 19:45 IST, ready for the 20:00 reply session.
 - Open the thread, edit the draft, and post it yourself from the disclosed Elvan-team account.
 - Tap **Replied**, **Skip** or **Not relevant**.
 - Warm lead (asking about Elvan, or replying to you)? Slack Ravi the link the same day.

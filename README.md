@@ -13,10 +13,10 @@ source is [F5Bot](https://f5bot.com), a free service that emails keyword alerts 
 and comments. Reddit Radar reads those emails from a dedicated Gmail inbox.
 
 ```
-F5Bot -> Gmail -> radar scan (every 30 min): IMAP -> parse -> score -> SQLite -> Telegram alerts + digest
+F5Bot -> Gmail -> radar scan (09:00, 13:00, 17:00, 19:15): IMAP -> parse -> score -> SQLite -> Telegram alerts + digest
                                                                    -> data/leads/latest.json
-       run_drafts.ps1 (09:00, 21:00): claude -p "/draft-replies" -> data/drafts/*.json -> radar send-drafts
-       radar feedback (every 15 min): your [Replied] [Skip] [Not relevant] taps -> lead status
+       run_drafts.ps1 (19:30): claude -p "/draft-replies" -> data/drafts/*.json -> radar send-drafts
+       radar feedback (09:05, 19:20, 23:30): your [Replied] [Skip] [Not relevant] taps -> lead status
 ```
 
 ## Setup
@@ -91,11 +91,15 @@ Claude Code CLI must be installed and logged in (`claude --version` works in Pow
 powershell -ExecutionPolicy Bypass -File scripts\register_tasks.ps1
 ```
 
+Built around replying once a day at 20:00 IST. To change the times, edit
+`scripts\register_tasks.ps1` and run it again as Administrator; it replaces the tasks in place.
+Feedback must run at least once every 24 hours, because Telegram only keeps button taps that long.
+
 | Task | Runs | When (IST) |
 |---|---|---|
-| `Radar_Scan` | `scripts\run_scan.ps1` | every 30 min, 07:00 to 01:00 |
-| `Radar_Drafts` | `scripts\run_drafts.ps1` | 09:00 and 21:00 |
-| `Radar_Feedback` | `scripts\run_radar.ps1 feedback` | every 15 min, 07:00 to 01:00 |
+| `Radar_Scan` | `scripts\run_scan.ps1` | 09:00, 13:00, 17:00, 19:15 |
+| `Radar_Drafts` | `scripts\run_drafts.ps1` | 19:30 (drafts ready before 20:00) |
+| `Radar_Feedback` | `scripts\run_radar.ps1 feedback` | 09:05, 19:20, 23:30 |
 | `Radar_Weekly_Stats` | `scripts\run_radar.ps1 stats --days 7` | Fri 18:00 |
 
 Tasks run as you (Claude Code needs your session), wake the PC, and catch up if a start was missed.
@@ -125,8 +129,10 @@ In Telegram you can also send the bot `/stats`, `/pause` (scans skip until resum
 
 ## Daily routine
 
-- Hot alerts arrive within about 30 minutes of an F5Bot email; Medium leads come in the digest.
-  Drafts arrive around 09:00 and 21:00.
+- Reply session: 20:00 IST. The 19:15 scan, 19:20 feedback and 19:30 drafting run first, so
+  drafts for the day's leads are on Telegram by about 19:45.
+- Hot alerts and digests arrive after each scan (09:00, 13:00, 17:00, 19:15). Fewer scans lose
+  nothing: each one picks up every F5Bot email since the last.
 - Open the thread, edit the draft, and post it yourself from the disclosed Elvan-team account.
 - Tap **Replied**, **Skip** or **Not relevant**. Tapping Replied on a *draft* message counts it as
   posted, which feeds the 1-in-5 Elvan mention limit.

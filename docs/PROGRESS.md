@@ -91,6 +91,13 @@ Reddit shut down public RSS feeds on Nov 13, 2026, stopped accepting new API acc
 - Verified on this PC with the placeholder `.env`: all 4 scripts parse in Windows PowerShell 5.1; `run_scan.ps1` exits 0 and queues one inbox warning; `run_drafts.ps1` skips with no undrafted leads; with leads pending and `claude` hidden from PATH it queues "Drafts skipped: run /draft-replies manually" and exits 0; `doctor` fails exactly the 4 credential checks and passes DB + claude.
 - **Not run:** `register_tasks.ps1` (needs Administrator and changes Task Scheduler) and a real headless `claude -p` run (spends Claude usage). Both are Aman's manual check.
 
+### Schedule change (2026-11-26)
+- Aman replies once a day at 20:00 IST, so the tasks run far less often: `Radar_Scan` 09:00, 13:00, 17:00, 19:15 (was every 30 min, 07:00 to 01:00, ~37 runs/day); `Radar_Feedback` 09:05, 19:20, 23:30 (was every 15 min, ~73 runs/day); `Radar_Drafts` 19:30 (was 09:00 and 21:00); `Radar_Weekly_Stats` unchanged (Fri 18:00).
+- The 19:15 scan -> 19:20 feedback -> 19:30 drafts chain means the evening's drafts use the latest leads and the latest taps (for the Elvan mention ratio), and arrive by about 19:45.
+- Feedback never leaves a gap over 24h (longest is 23:30 -> 09:05), because Telegram drops button taps that `getUpdates` hasn't collected within 24 hours.
+- Nothing is lost with fewer scans: each scan fetches every F5Bot email since the last processed one. Leads scored later get a smaller recency bonus (e.g. +4 instead of +12), which can move a borderline lead from High to Medium; it still shows in the digest and the drafts.
+- `scripts/register_tasks.ps1`, the README, `docs/PROJECT_SPEC.md` (sections 1, 3, 12) and `HOW_TO_BUILD.md` updated. Re-run `register_tasks.ps1` as Administrator to apply.
+
 ## Deviations from spec
 
 - Stage 1: Windows Python has no tz database and `tzdata` isn't an allowed dependency, so `Settings.zoneinfo()` falls back to a fixed offset for `Asia/Calcutta` / `Asia/Kolkata` / `UTC` (no DST, so it's exact). Other zones fall back to UTC with a warning. Installing `tzdata` would remove the need for this.

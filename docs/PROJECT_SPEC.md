@@ -9,7 +9,7 @@ Signals like these lose most of their value in 24 to 48 hours (per the Elvan mas
 Success after 4 weeks:
 
 - At least 60% of leads tagged High get marked "relevant" by Aman.
-- Every High lead reaches Telegram within 1 hour of the F5Bot email arriving.
+- Every High lead that arrives by 19:15 IST reaches Telegram, with a draft, before the 20:00 IST reply session that day.
 - Zero runs lose data because of an IMAP, parsing or Telegram failure.
 
 ## 2. Why F5Bot
@@ -28,17 +28,17 @@ What this changes compared with the old plan:
 ```
 F5Bot --email--> dedicated Gmail inbox
                        |
-          [radar scan]  (every 30 min)
+          [radar scan]  (09:00, 13:00, 17:00, 19:15)
      IMAP: fetch new F5Bot emails (by UID) -> parse -> Mentions
      dedupe -> score -> store (SQLite)
      hot alerts + digest -> Telegram (buttons)
      export -> data/leads/YYYY-MM-DD_HHMM.json (+ latest.json)
                        |
-          [run_drafts.ps1]  (2x daily)  claude -p "/draft-replies"
+          [run_drafts.ps1]  (19:30)  claude -p "/draft-replies"
      reads latest.json + docs/REPLY_RULES.md -> data/drafts/*.json
           [radar send-drafts] -> Telegram, one message per draft
                        |
-          [radar feedback]  (every 15 min)
+          [radar feedback]  (09:05, 19:20, 23:30)
      Telegram getUpdates -> button taps -> lead status in DB
 ```
 
@@ -291,9 +291,9 @@ MAX_LEAD_AGE_HOURS=72
 
 | Task | Command | When (IST) |
 |---|---|---|
-| `Radar_Scan` | `scripts/run_scan.ps1` | every 30 min, 07:00 to 01:00 |
-| `Radar_Drafts` | `scripts/run_drafts.ps1` | 09:00 and 21:00 |
-| `Radar_Feedback` | `python -m radar feedback` | every 15 min, 07:00 to 01:00 |
+| `Radar_Scan` | `scripts/run_scan.ps1` | 09:00, 13:00, 17:00, 19:15 |
+| `Radar_Drafts` | `scripts/run_drafts.ps1` | 19:30 |
+| `Radar_Feedback` | `python -m radar feedback` | 09:05, 19:20, 23:30 |
 | `Radar_Weekly_Stats` | `python -m radar stats --days 7` | Fri 18:00 |
 
 ## 13. Out of scope
