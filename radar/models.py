@@ -17,19 +17,24 @@ REDDIT_HOSTS = {
     "m.reddit.com",
     "i.reddit.com",
 }
-_ID_RE = re.compile(r"^[a-z0-9]{2,12}$")
+# Reddit ids are base36. Posts are ~7 chars today; newer comment ids are 13 (e.g. "19t5tnte5nfsw").
+_ID_RE = re.compile(r"^[a-z0-9]{2,20}$")
+# Path segments that stand in for the slug before a comment id: F5Bot links use
+# /comments/{post_id}/c/{comment_id}, Reddit's share links use .../comment/{comment_id}.
+_COMMENT_MARKERS = {"c", "comment"}
 
 
 def parse_reddit_url(url: str) -> tuple[str, str, str | None]:
     """Return (subreddit, post_id, comment_id or None) for a Reddit permalink.
 
     Handles /r/{sub}/comments/{post_id}/{slug}/ and .../{slug}/{comment_id}/,
-    the newer .../comments/{post_id}/comment/{comment_id}/ form, old./np. hosts,
-    trailing slashes and query strings. Raises ValueError for anything else.
+    the .../comments/{post_id}/c/{comment_id} form F5Bot links to, the
+    .../comments/{post_id}/comment/{comment_id}/ share form, old./np. hosts,
+    trailing slashes and query strings (e.g. ?context=3). Raises ValueError for anything else.
     """
     if not isinstance(url, str) or not url.strip():
         raise ValueError("empty URL")
-    parts = urlsplit(url.strip())
+    parts = urlsplit(url.strip())  # query string and fragment are dropped here
     if parts.scheme not in ("http", "https"):
         raise ValueError(f"not an http(s) URL: {url!r}")
     host = (parts.hostname or "").lower()
@@ -43,12 +48,10 @@ def parse_reddit_url(url: str) -> tuple[str, str, str | None]:
         raise ValueError(f"bad Reddit post id in {url!r}")
     comment_id: str | None = None
     rest = segs[4:]
-    if len(rest) >= 2 and rest[0].lower() == "comment":
+    if len(rest) >= 2:  # {slug}/{comment_id}, c/{comment_id} or comment/{comment_id}
         comment_id = rest[1].lower()
-    elif len(rest) >= 2:
-        comment_id = rest[1].lower()
-    if comment_id is not None and not _ID_RE.match(comment_id):
-        raise ValueError(f"bad Reddit comment id in {url!r}")
+        if not _ID_RE.match(comment_id):
+            raise ValueError(f"bad Reddit comment id in {url!r}")
     return subreddit, post_id, comment_id
 
 
@@ -59,7 +62,7 @@ def canonical_url(subreddit: str, post_id: str, comment_id: str | None, slug: st
 
 def _slug_from(url: str) -> str:
     segs = [s for s in urlsplit(url).path.split("/") if s]
-    if len(segs) >= 5 and segs[4].lower() != "comment":
+    if len(segs) >= 5 and segs[4].lower() not in _COMMENT_MARKERS:
         return segs[4]
     return "_"
 

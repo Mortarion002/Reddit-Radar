@@ -1,14 +1,24 @@
 """F5Bot alert email -> list[Mention]. Stdlib only (email + html.parser).
 
-The parser does not depend on exact F5Bot markup. It walks the email's links in order:
-- a link whose (unwrapped) target is a Reddit post/comment permalink starts a Reddit match;
-  its link text is the thread title and the text after it, up to the next link, is the
-  snippet (plus an optional "Keyword:" line);
-- a link to Hacker News or Lobsters starts a non-Reddit match, which is skipped;
-- any other link (settings, unsubscribe) ends the current match.
+Real F5Bot layout (from tests/fixtures/f5bot/*.eml, Nov 2026):
+- From "F5Bot Alerts <alerts@f5bot.com>", subject "F5Bot found something: <keyword>"
+- multipart/alternative; the HTML has an <h2>Keyword: "csat"</h2> heading per keyword,
+  then one <p> per hit: "Reddit Posts (/r/UPSC/):" <a href="https://f5bot.com/url?u=<encoded
+  reddit URL>&i=..&h=..">thread title</a> "by <author>" <br> <excerpt>
+- post links unwrap to /r/{sub}/comments/{post_id}/{slug}/, comment links to
+  /r/{sub}/comments/{post_id}/c/{comment_id}?context=3
+- an ad block (f5bot.com/url?a=..) and footer links on f5bot.com
 
-NOTE: built before real F5Bot emails were available (see docs/PROGRESS.md, stage 4).
-Re-check against real `.eml` files in tests/fixtures/f5bot/.
+The parser walks the links in order rather than relying on exact markup:
+- a link whose unwrapped target is a Reddit permalink starts a hit; its link text is the
+  thread title, and the text up to the next link holds the author line and the excerpt;
+- a "Keyword:" line is a heading for the hits after it (or, as the first line after a
+  link, that hit's own keyword); the subject is the fallback;
+- Hacker News / Lobsters links are skipped (debug log);
+- a link that looks like a hit (an F5Bot redirect, or any reddit.com URL) but doesn't
+  parse is never dropped silently: it's logged as a warning and returned in
+  ParseResult.failed_hits so the run summary counts it;
+- any other link (ad, settings, unsubscribe) ends the current hit.
 """
 
 from __future__ import annotations
@@ -47,10 +57,26 @@ _FOOTER_RE = re.compile(
     re.IGNORECASE,
 )
 _SUBJECT_KEYWORD_RE = re.compile(r"f5bot\s+found\s+something\s*[:!-]*\s*(.*)$", re.IGNORECASE)
+# "by Spare-upsc-80" right after the hit link
+_BY_LINE_RE = re.compile(r"^by\s+/?(?:u/)?([A-Za-z0-9_-]{3,30})$", re.IGNORECASE)
+# F5Bot's own text after the last hit ("Do you have comments or suggestions about F5Bot?",
+# the ad block, the footer). It ends the current hit, so ad copy never lands in a snippet.
+_END_OF_HITS_RE = re.compile(
+    r"(suggestions about f5bot|want to advertise|you are receiving this|you're receiving this)", re.IGNORECASE
+)
+# "Keyword was found in submission title." at the start of an excerpt
+_FOUND_IN_RE = re.compile(r"^keyword was found in\b.*$", re.IGNORECASE)
+# Plain text hit line: Reddit Posts (/r/UPSC/): 'Title here' by someone
+_TEXT_HIT_RE = re.compile(
+    r"^\s*(?:reddit|hacker\s*news|lobste\.?rs)\s+(?:posts?|comments?|stories)\b[^:]{0,60}:\s*'(.*)'\s+by\s+(\S+)\s*$",
+    re.IGNORECASE,
+)
 
 
 class ParseError(ValueError):
-    pass
+    def __init__(self, message: str, failed_hits: list[str] | None = None) -> None:
+        super().__init__(message)
+        self.failed_hits = failed_hits or []
 
 
 @dataclass(slots=True)
@@ -58,7 +84,16 @@ class _Match:
     url: str
     title: str
     reddit: bool
+    group_keyword: str | None = None  # from the "Keyword:" heading above this hit
+    keyword: str | None = None  # from a "Keyword:" line directly under the link
     lines: list[str] = field(default_factory=list)
+
+
+@dataclass
+class ParseResult:
+    mentions: list[Mention] = field(default_factory=list)
+    failed_hits: list[str] = field(default_factory=list)  # hit URLs that could not be parsed
+    non_reddit: int = 0  # Hacker News / Lobsters hits skipped
 
 
 # ---- link handling ------------------------------------------------------------------
@@ -167,12 +202,19 @@ def _text_tokens(plain: str) -> list[tuple[str, str, str]]:
             pending.append(line)
             continue
         before = [l for l in pending if l.strip()]
-        title = ""
-        if before and not _KEYWORD_RE.match(before[-1]) and not _SECTION_RE.match(before[-1]):
-            title = before.pop().strip()
+        title, author = "", None
+        if before:
+            hit = _TEXT_HIT_RE.match(before[-1])
+            if hit:
+                title, author = hit.group(1).strip(), hit.group(2)
+                before.pop()
+            elif not _KEYWORD_RE.match(before[-1]) and not _SECTION_RE.match(before[-1]):
+                title = before.pop().strip()
         tokens.append(("text", "\n".join(before) + "\n", ""))
         pending = []
         tokens.append(("link", urls[0], title))
+        if author:
+            tokens.append(("text", f"by {author}\n", ""))
         rest = line.replace(urls[0], "").strip()
         if rest:
             tokens.append(("text", rest + "\n", ""))
@@ -183,60 +225,98 @@ def _text_tokens(plain: str) -> list[tuple[str, str, str]]:
 # ---- tokens -> matches ----------------------------------------------------------------
 
 
-def _matches(tokens: list[tuple[str, str, str]]) -> tuple[list[_Match], int, int]:
-    """Return (matches, non-Reddit matches skipped, total http links)."""
+def _host(url: str) -> str:
+    try:
+        return (urlsplit(url).hostname or "").lower()
+    except ValueError:
+        return ""
+
+
+def _looks_like_hit(raw: str, href: str) -> bool:
+    """A link F5Bot uses for a hit: a redirect to a real URL, or any reddit.com link."""
+    host = _host(href)
+    redirected = href != raw.strip() and href.lower().startswith(("http://", "https://"))
+    return host == "reddit.com" or host.endswith(".reddit.com") or (redirected and not host.endswith("f5bot.com"))
+
+
+def _matches(tokens: list[tuple[str, str, str]]) -> tuple[list[_Match], int, int, list[str]]:
+    """Return (Reddit hits, non-Reddit hits skipped, total http links, hit URLs that failed to parse)."""
     matches: list[_Match] = []
+    failed: list[str] = []
     current: _Match | None = None
+    group_keyword: str | None = None
     skipped = links = 0
     buffer: list[str] = []
 
     def flush() -> None:
-        if current is not None and buffer:
-            current.lines.extend("".join(buffer).splitlines())
+        nonlocal group_keyword, current
+        text = "".join(buffer)
         buffer.clear()
+        for raw_line in text.splitlines():
+            line = " ".join(raw_line.split())
+            if not line:
+                continue
+            if _END_OF_HITS_RE.search(line):
+                current = None
+                continue
+            kw = _KEYWORD_RE.match(line)
+            if kw:
+                value = kw.group(1).strip().strip("\"'")
+                if current is not None and not current.lines and current.keyword is None:
+                    current.keyword = value  # "Keyword:" directly under the link
+                else:
+                    group_keyword = value  # heading for the hits that follow
+                continue
+            if current is not None:
+                current.lines.append(line)
 
     for kind, value, text in tokens:
         if kind == "text":
             buffer.append(value)
             continue
+        flush()
         href = unwrap_url(value)
         if href.lower().startswith(("http://", "https://")):
             links += 1
-        flush()
         if _is_reddit_permalink(href):
             if current is not None and current.reddit and current.url == href and not current.lines:
                 continue  # same link twice in a row (title link + "view" link)
-            current = _Match(url=href, title=text, reddit=True)
+            current = _Match(url=href, title=text, reddit=True, group_keyword=group_keyword)
             matches.append(current)
         elif _is_non_reddit_match(href):
             log.debug("Skipping non-Reddit match: %s", href)
             skipped += 1
             current = _Match(url=href, title=text, reddit=False)
+        elif _looks_like_hit(value, href):
+            log.warning("F5Bot hit skipped: could not parse the Reddit URL %s", href)
+            failed.append(href)
+            current = None
         else:
             current = None
     flush()
-    return [m for m in matches if m.reddit], skipped, links
+    return [m for m in matches if m.reddit], skipped, links, failed
 
 
-def _clean_lines(lines: list[str]) -> tuple[list[str], str | None, str | None]:
-    keyword = author = None
+def _clean_lines(lines: list[str]) -> tuple[list[str], str | None]:
+    """Snippet lines and the author, with headers, footers and F5Bot boilerplate removed."""
+    author = None
     kept: list[str] = []
-    for raw in lines:
+    for index, raw in enumerate(lines):
         line = " ".join(raw.split())
         if not line or re.fullmatch(r"[-_=*]{2,}", line):  # blank or a separator like "--"
             continue
-        kw = _KEYWORD_RE.match(line)
-        if kw:
-            keyword = keyword or kw.group(1).strip().strip("\"'")
+        by = _BY_LINE_RE.match(line)
+        if by and index == 0:
+            author = by.group(1)
             continue
-        if _SECTION_RE.match(line) or _FOOTER_RE.search(line):
+        if _FOUND_IN_RE.match(line) or _SECTION_RE.match(line) or _FOOTER_RE.search(line):
             continue
         found = _AUTHOR_RE.search(line)
         if found and len(line) < 60:
             author = author or found.group(1)
             continue
         kept.append(line)
-    return kept, keyword, author
+    return kept, author
 
 
 def _clean_title(title: str, url: str) -> str:
@@ -278,8 +358,36 @@ def parse_message(raw: bytes) -> EmailMessage:
     return email.message_from_bytes(raw, policy=email.policy.default)  # type: ignore[return-value]
 
 
-def parse_email(raw: bytes) -> list[Mention]:
-    """Every Reddit match in an F5Bot alert email. Raises ParseError if links exist but none parse."""
+def _build(found: list[_Match], when: datetime, default_keyword: str, failed: list[str]) -> list[Mention]:
+    mentions: list[Mention] = []
+    seen: set[str] = set()
+    for match in found:
+        lines, author = _clean_lines(match.lines)
+        try:
+            mention = Mention.from_url(
+                match.url,
+                title=_clean_title(match.title, match.url),
+                snippet=" ".join(lines),
+                keyword=match.keyword or match.group_keyword or default_keyword,
+                received_at=when,
+                author=author,
+                source="f5bot",
+            )
+        except ValueError as exc:
+            log.warning("F5Bot hit skipped: %s (%s)", match.url, exc)
+            failed.append(match.url)
+            continue
+        if mention.mention_id not in seen:
+            seen.add(mention.mention_id)
+            mentions.append(mention)
+    return mentions
+
+
+def parse_email_result(raw: bytes) -> ParseResult:
+    """Every Reddit hit in an F5Bot alert email, plus the hits that could not be parsed.
+
+    Raises ParseError when the email has no usable Reddit hit and no HN/Lobsters hit.
+    """
     try:
         msg = parse_message(raw)
         html_body, text_body = _bodies(msg)
@@ -288,42 +396,32 @@ def parse_email(raw: bytes) -> list[Mention]:
     if html_body is None and text_body is None:
         raise ParseError("email has no text or HTML body")
 
-    tokens = _html_tokens(html_body) if html_body is not None else _text_tokens(text_body or "")
-    found, skipped, links = _matches(tokens)
-    if not found and html_body is not None and text_body:
-        found, skipped2, links2 = _matches(_text_tokens(text_body))
-        skipped, links = max(skipped, skipped2), max(links, links2)
-
     when = received_at(msg)
     default_keyword = subject_keyword(msg)
-    mentions: list[Mention] = []
-    seen: set[str] = set()
-    for match in found:
-        lines, keyword, author = _clean_lines(match.lines)
-        try:
-            mention = Mention.from_url(
-                match.url,
-                title=_clean_title(match.title, match.url),
-                snippet=" ".join(lines),
-                keyword=keyword or default_keyword,
-                received_at=when,
-                author=author,
-                source="f5bot",
-            )
-        except ValueError as exc:
-            log.debug("Skipping unusable match %s: %s", match.url, exc)
-            continue
-        if mention.mention_id not in seen:
-            seen.add(mention.mention_id)
-            mentions.append(mention)
+    tokens = _html_tokens(html_body) if html_body is not None else _text_tokens(text_body or "")
+    found, skipped, links, failed = _matches(tokens)
+    mentions = _build(found, when, default_keyword, failed)
+    if not mentions and html_body is not None and text_body:
+        found2, skipped2, links2, failed2 = _matches(_text_tokens(text_body))
+        mentions2 = _build(found2, when, default_keyword, failed2)
+        if mentions2:
+            mentions, failed = mentions2, failed2
+        skipped, links = max(skipped, skipped2), max(links, links2)
 
     if not mentions and not skipped:
-        # Every F5Bot alert has links. No match and no recognised HN/Lobsters item means the
+        # Every F5Bot alert has links. No hit and no recognised HN/Lobsters item means the
         # format changed or this isn't an alert: keep the email in data/unparsed/ for a human.
+        if failed:
+            raise ParseError(f"{len(failed)} hit(s) but none could be parsed: {', '.join(failed)}", failed)
         if links:
             raise ParseError(f"{links} link(s) but no Reddit match could be parsed")
         raise ParseError("no links found in the email")
-    return mentions
+    return ParseResult(mentions=mentions, failed_hits=failed, non_reddit=skipped)
+
+
+def parse_email(raw: bytes) -> list[Mention]:
+    """Every Reddit hit in an F5Bot alert email. Raises ParseError if there is none to use."""
+    return parse_email_result(raw).mentions
 
 
 def message_id(raw: bytes) -> str:

@@ -103,6 +103,8 @@ def _print_summary(summary: RunSummary, dry_run: bool) -> None:
         f"{prefix}{summary.command}: {emails}{summary.mentions_found} mentions, {summary.new_mentions} new. "
         f"{tiers}. Hot alerts: {summary.alerts_sent}"
     )
+    if summary.parse_errors or summary.skipped_hits:
+        print(f"  parse errors: {summary.parse_errors}, skipped hits: {summary.skipped_hits} (see data/logs/radar.log)")
 
 
 def cmd_import(args: argparse.Namespace, settings: Settings) -> int:

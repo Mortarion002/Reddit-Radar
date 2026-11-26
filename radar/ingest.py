@@ -14,7 +14,7 @@ from .digest import RunSummary
 from .models import Mention
 from .pipeline import Context, process
 from .sources.f5bot_mail import Mailbox, MailboxError
-from .sources.f5bot_parser import ParseError, message_id, parse_email, parse_message, received_at
+from .sources.f5bot_parser import ParseError, message_id, parse_email_result, parse_message, received_at
 from .store import Store, iso, parse_dt
 
 log = logging.getLogger("radar.ingest")
@@ -29,7 +29,7 @@ class EmailRecord:
     message_id: str
     received_at: datetime | None
     mentions_found: int
-    status: str  # ok | no_reddit | parse_error
+    status: str  # ok | partial (some hits skipped) | no_reddit | parse_error
 
 
 @dataclass
@@ -69,9 +69,10 @@ def parse_batch(settings: Settings, emails: list[tuple[str, bytes]], dry_run: bo
     for uid, raw in emails:
         mid = message_id(raw)
         try:
-            mentions = parse_email(raw)
+            result = parse_email_result(raw)
         except Exception as exc:  # ParseError, or any parser bug: never lose the run
             summary.parse_errors += 1
+            summary.skipped_hits += len(getattr(exc, "failed_hits", []) or [])
             reason = str(exc) if isinstance(exc, ParseError) else f"{type(exc).__name__}: {exc}"
             summary.errors.append(f"parse {uid}: {reason}")
             if dry_run:
@@ -81,10 +82,21 @@ def parse_batch(settings: Settings, emails: list[tuple[str, bytes]], dry_run: bo
                 log.warning("Email %s did not parse (%s); saved to %s", uid, reason, path)
             batch.records.append(EmailRecord(uid, mid, _email_date(raw), 0, "parse_error"))
             continue
+        mentions = result.mentions
         for m in mentions:
             batch.uid_by_mention.setdefault(m.mention_id, uid)
         batch.mentions.extend(mentions)
         status = "ok" if mentions else "no_reddit"
+        if result.failed_hits:
+            # Some hits in this email didn't parse: count them, log each URL, and keep a copy
+            # of the email in data/unparsed/ so the hits can be checked by hand.
+            status = "partial"
+            summary.skipped_hits += len(result.failed_hits)
+            for url in result.failed_hits:
+                summary.errors.append(f"skipped hit in {uid}: {url}")
+            if not dry_run:
+                path = save_unparsed(settings, uid, raw)
+                log.warning("Email %s: %d hit(s) skipped; copy saved to %s", uid, len(result.failed_hits), path)
         batch.records.append(EmailRecord(uid, mid, _email_date(raw), len(mentions), status))
         log.info("Email %s: %d Reddit mention(s)", uid, len(mentions))
     summary.emails_read += len(emails)

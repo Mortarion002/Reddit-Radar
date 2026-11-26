@@ -1,0 +1,237 @@
+Delivered-To: radar@example.com
+Received: by 2002:a05:6400:35d3:b0:2e8:5802:72bb with SMTP id po19csp5496657ecc;
+        Wed, 25 Nov 2026 04:49:17 -0800 (PST)
+X-Received: by 2002:a05:690e:4087:b0:679:887f:a2c0 with SMTP id 956f58d0204a3-67df440035bmr15376211d50.4.1795610956830;
+        Wed, 25 Nov 2026 04:49:16 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1795610956; cv=none;
+        d=google.com; s=arc-20260327;
+        b=fPwUkhzuSdMznuIXFazXNfKrXaSpZnDesjH2XQ6sjEJiJuULLCjQy/SpNgimY5x/N5
+         a/LGuwpxri/Y2PhwdLWfsIz5tcIZTn+ObMDnv4t7rBHAEobbGfURXvX4yhryrjZCuVxC
+         s7bFlHp5ry8a1UnG3wRJtRC5bFatmtwg/qo6h1PBH4ECu5jF5dHCmYmhUCwCg5ro9wii
+         b2yKy5AtDxAHL7wnnCSNgmb1pMCwiX6yjpJrSGpG0skAvNAlbIIG52LYSiwXRiLpUo87
+         LZD0d5R1BIt9TRfJUmGdTQHlNclRCYrtreoeGOR0OCBmpbX5lDnXMSBf+egBm+WaAycD
+         PNyA==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20260327;
+        h=date:mime-version:list-unsubscribe:list-unsubscribe-post:list-id
+         :auto-submitted:message-id:reply-to:from:subject:to:dkim-signature;
+        bh=oq2ehe+l1UiHA+0Rh9E32OnknBTBWfdYgd3WjHmcyCQ=;
+        fh=0AV0GQQO3rO6bHZa723uIOSBIeBA+grtAj4SlruysPg=;
+        b=bdAEDC7qOPp1y9JpqPabVTzJm5jsDLfWorNLLRGo+aQ0CTF6zyatUUX6YcqGndik3c
+         jqEGX9uE07xblJmIeKRfl7JTkEN/IHLUIZKPixvcoDqOyxHuYKS9g+Jh38e+86xLiJ5K
+         nsM/jc2IFfBaLBo3LEFAz7KLgZdWMFMWr4qXJEvlIdLXteVuCF60CwE1nwh61vAQyPQ3
+         LcLx9xyEU7FHoLMQisE2fsu1vMO7mV2HihYZjeNWqZfuXdQVFCjlj8evCsgJVu5qGI2e
+         UCnrisDLeOExG7zW4h1Zh/W2BeBDRi7R2ewIOPMiHDeesHic1DDVi3IRffK5fQJSC8kl
+         2NGg==;
+        dara=google.com
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@f5bot.com header.s=20260712 header.b=lhWrYH9Y;
+       spf=pass (google.com: domain of admin@f5bot.com designates 173.230.139.58 as permitted sender) smtp.mailfrom=admin@f5bot.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=f5bot.com
+Return-Path: <admin@f5bot.com>
+Received: from f5bot.com (f5bot.com. [173.230.139.58])
+        by mx.google.com with ESMTPS id 956f58d0204a3-67df33ec556si8096486d50.224.2026.11.25.04.49.16
+        for <radar@example.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Wed, 25 Nov 2026 04:49:16 -0800 (PST)
+Received-SPF: pass (google.com: domain of admin@f5bot.com designates 173.230.139.58 as permitted sender) client-ip=173.230.139.58;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@f5bot.com header.s=20260712 header.b=lhWrYH9Y;
+       spf=pass (google.com: domain of admin@f5bot.com designates 173.230.139.58 as permitted sender) smtp.mailfrom=admin@f5bot.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=f5bot.com
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed; d=f5bot.com;
+	s=20260712; h=Date:Content-type:MIME-Version:List-Unsubscribe:List-Id:
+	Message-ID:Reply-To:From:Subject:To:Sender:Cc:Content-Transfer-Encoding:
+	Content-ID:Content-Description:Resent-Date:Resent-From:Resent-Sender:
+	Resent-To:Resent-Cc:Resent-Message-ID:In-Reply-To:References:List-Help:
+	List-Subscribe:List-Post:List-Owner:List-Archive;
+	bh=oq2ehe+l1UiHA+0Rh9E32OnknBTBWfdYgd3WjHmcyCQ=; b=lhWrYH9Yfy/+6C2CIiasxYtUtP
+	t64OfT1HaQDLQZJw4HKFcPDm21TozAk5mLi35cEJf/dE8/PoTUl5dDETWJKCYl9MmunTLTUkA9GGM
+	fjelmh1f91rUnSXaQClhuYIxj1tPmF5vGcjH1L3t1f0I6cNx++gcsS0hE9qCYxucUCRsmIbFMPVjT
+	OqPyTtt9e4suT4D1Jh/CEhP1kZT6a/5Fwv1TpvLEnzOz7HSHAOJ4Atz/32cxtfwrHxSHIR59DhqGc
+	rZ+sASOxLgwTMckTEkEV4c8Vqg5ggEndDd0wnGbTWQmRUF/9PA13pmpIsLJ9CPI2WM8a8uH8sK8Z8
+	QQ4FNdFw==;
+Received: from www-data by static.atdhq.com with local (Exim 4.96)
+	(envelope-from <admin@f5bot.com>)
+	id 1xWCR2-00CrR9-0u
+	for radar@example.com;
+	Wed, 25 Nov 2026 12:49:16 +0000
+To: Radar Test <radar@example.com>
+Subject: F5Bot found something: csat
+From: F5Bot Alerts <alerts@f5bot.com>
+Reply-To: support@f5bot.com
+X-Mailer: F5Bot 1.0
+Message-ID: <1843af98819bdffa631502600179a866@f5bot.com>
+Auto-Submitted: auto-generated
+X-Auto-Response-Suppress: OOF, AutoReply
+List-Id: F5Bot Alert <f5bot.com>
+List-Unsubscribe-Post: List-Unsubscribe=One-Click
+List-Unsubscribe: <https://f5bot.com/disable-all?e=radar%40example.com&k=REDACTEDKEY0&w=head>
+MIME-Version: 1.0
+Content-type: multipart/alternative; boundary="1def00168eb2377c5cffeb2abd44bfaf"
+Date: Wed, 25 Nov 2026 12:49:16 +0000
+
+This is a multipart message using MIME. If you're seeing this, then your email client may not support that.
+
+--1def00168eb2377c5cffeb2abd44bfaf
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+F5Bot found something!=0A=0A=0AKeyword: "csat"=0A  Reddit Comments (/r/GPSC=
+/): 'RTC baroda timetable for first week. Any reviews for the faculties?' b=
+y Plenty_Entrance6554=0A    https://f5bot.com/url?u=3Dhttps%3A%2F%2Fwww.red=
+dit.com%2Fr%2FGPSC%2Fcomments%2F1xlxcnz%2Fc%2F19t5yek5a4fj8%3Fcontext%3D3&i=
+=3D100927469&h=3Db12f9aa4=0A  Reddit Comments (/r/Romania/): 'S-a votat =
+=C3=AEnfiin=C8=9Barea comisiei de anchet=C4=83 =C3=AEn cazul Bolojan / Fost=
+ul premier este a...' by disc0mbobulated=0A    https://f5bot.com/url?u=3Dht=
+tps%3A%2F%2Fwww.reddit.com%2Fr%2FRomania%2Fcomments%2F1y53zpx%2Fc%2F19t5z6l=
+7yyr51%3Fcontext%3D3&i=3D100927470&h=3D8dc660e2=0A  Reddit Comments (/r/Sep=
+aration_Anxiety/): 'Separation anxiety success stories' by No_Explorer8369=
+=0A    https://f5bot.com/url?u=3Dhttps%3A%2F%2Fwww.reddit.com%2Fr%2FSeparat=
+ion_Anxiety%2Fcomments%2F1y4t67g%2Fc%2F19t6371nwhlpe%3Fcontext%3D3&i=3D1009=
+27471&h=3D7002a166=0A  Reddit Posts (/r/Romania2/): 'Kensington Communicati=
+on spune c=C4=83 nu a luat bani s=C4=83 =C3=AEl promoveze pe Georgescu: Rap=
+...' by IUsedToBeAMod=0A    https://f5bot.com/url?u=3Dhttps%3A%2F%2Fwww.red=
+dit.com%2Fr%2FRomania2%2Fcomments%2F1y56d7z%2Fkensington_communication_spun=
+e_c%C4%83_nu_a_luat_bani%2F&i=3D100927472&h=3D8f74177b=0A=0ADo you have com=
+ments or suggestions about F5Bot? Please hit reply and let me know what you=
+ think!=0A=0AAre you responsible for email security and phishing protection=
+? Cloud-based Phishing Protection with real-time url scanning and sender im=
+personation protection. Try PhishProtection.com free to 30 days. 10 minute =
+setup. No contracts.=0A=0AWant to advertise your company or product on F5Bo=
+t? Hit reply to get in touch.=0A=0A=0A=0AYou are receiving this email becau=
+se you signed up for alerts from F5Bot.=0AIf you no longer wish to receive =
+these emails, please log into your account at=0Ahttps://f5bot.com or visit =
+the link below to disable all future emails:=0Ahttps://f5bot.com/disable-al=
+l?e=3Dradar%40example.com&k=3DREDACTEDKEY0&w=3Demail=0A
+
+--1def00168eb2377c5cffeb2abd44bfaf
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE html>=0A<html>=0A<head>=0A<meta charset=3D"utf-8">=0A<meta name=
+=3D"viewport" content=3D"width=3Ddevice-width, initial-scale=3D1.0">=0A<met=
+a name=3D"color-scheme" content=3D"light dark">=0A<meta name=3D"supported-c=
+olor-schemes" content=3D"light dark">=0A<title>F5Bot</title>=0A<style>=0A:r=
+oot { color-scheme: light dark; supported-color-schemes: light dark; }=0A@m=
+edia (prefers-color-scheme: dark) {=0A  .f5-page { background-color:#121212=
+ !important; }=0A  .f5-preheader { color:#121212 !important; }=0A  .f5-card=
+ { background-color:#242424 !important; }=0A  .f5-body { color:#E8E8E8 !imp=
+ortant; }=0A  .f5-heading { color:#FFFFFF !important; }=0A  .f5-hit-heading=
+ { color:#FFFFFF !important; }=0A  .f5-hit { color:#E8E8E8 !important; }=0A=
+  .f5-meta { color:#A0A0A0 !important; }=0A  .f5-excerpt { color:#E8E8E8 !i=
+mportant; }=0A  .f5-notice { background-color:#33280F !important; color:#ED=
+E6D8 !important; }=0A  .f5-ad { background-color:#33331F !important; color:=
+#E8E8DC !important; }=0A  /* No !important, so the house ad button keeps it=
+s inline color. */=0A  .f5-ad a { color:#FFB86B; }=0A  .f5-footer { color:#=
+9A9A9A !important; }=0A  .f5-footer-link { color:#A8A8A8 !important; }=0A}=
+=0A</style>=0A</head>=0A<body class=3D"f5-page" style=3D"margin:0; padding:=
+0; background-color:#F4F4F4;">=0A<span class=3D"f5-preheader" style=3D"disp=
+lay:none; font-size:1px; color:#F4F4F4; line-height:1px; max-height:0px; ma=
+x-width:0px; opacity:0; overflow:hidden;">New mentions: csat</span>=0A<tabl=
+e role=3D"presentation" class=3D"f5-page" width=3D"100%" border=3D"0" cellp=
+adding=3D"0" cellspacing=3D"0" style=3D"background-color:#F4F4F4;">=0A<tr><=
+td align=3D"center" style=3D"padding:24px 12px;">=0A<table role=3D"presenta=
+tion" width=3D"640" border=3D"0" cellpadding=3D"0" cellspacing=3D"0" style=
+=3D"width:100%; max-width:640px;">=0A<tr><td align=3D"center" class=3D"f5-c=
+ard" style=3D"background-color:#FFFFFF; border-radius:4px 4px 0 0; padding:=
+20px 0 16px 0;">=0A<a href=3D"https://f5bot.com"><img src=3D"https://f5bot.=
+com/public/images/logo-header-alpha.png" width=3D"150" height=3D"80" alt=3D=
+"F5Bot" style=3D"display:block; border:0;"></a>=0A</td></tr>=0A<tr><td clas=
+s=3D"f5-card f5-body" style=3D"background-color:#FFFFFF; border-top:3px sol=
+id #F15A24; border-radius:0 0 4px 4px; padding:28px 36px; font-family:Arial=
+,Helvetica,sans-serif; font-size:16px; line-height:1.5; color:#1A1A1A;">=0A=
+<p class=3D"f5-heading" style=3D"font-size:22px; font-weight:bold; margin:0=
+ 0 4px 0; color:#000000;">F5Bot found something!</p>=0A<h2 class=3D"f5-hit-=
+heading" style=3D"margin:24px 0 8px 0; font-family:Arial,Helvetica,sans-ser=
+if; font-size:19px; font-weight:bold; color:#000000;">Keyword: &quot;csat&q=
+uot;</h2>=0A<p class=3D"f5-hit" style=3D"margin:8px 0 16px 10px; font-famil=
+y:Arial,Helvetica,sans-serif; font-size:16px; line-height:1.5; color:#1A1A1=
+A;"><span class=3D"f5-meta" style=3D"font-size:14px; color:#666666;">Reddit=
+ Comments (/r/GPSC/):</span> <a href=3D"https://f5bot.com/url?u=3Dhttps%3A%=
+2F%2Fwww.reddit.com%2Fr%2FGPSC%2Fcomments%2F1xlxcnz%2Fc%2F19t5yek5a4fj8%3Fc=
+ontext%3D3&amp;i=3D100927469&amp;h=3Db12f9aa4" style=3D"color:#F15A24; font=
+-weight:bold;">RTC baroda timetable for first week. Any reviews for the fac=
+ulties?</a> <span class=3D"f5-meta" style=3D"font-size:14px; color:#666666;=
+">by Plenty_Entrance6554</span><br>=0A<span class=3D"f5-excerpt" style=3D"f=
+ont-family:Menlo,Consolas,'Lucida Console',Monaco,monospace; font-size:16px=
+; color:#1A1A1A; word-break:break-word; overflow-wrap:anywhere;">Attend <st=
+rong>CSAT</strong> lectures and maybe some others if you=E2=80=99ve doubt t=
+hat=E2=80=99s it. No need to attend all lectures. Better to get friends who=
+ are like minded and actually wants to study seriously. </span></p>=0A<p cl=
+ass=3D"f5-hit" style=3D"margin:8px 0 16px 10px; font-family:Arial,Helvetica=
+,sans-serif; font-size:16px; line-height:1.5; color:#1A1A1A;"><span class=
+=3D"f5-meta" style=3D"font-size:14px; color:#666666;">Reddit Comments (/r/R=
+omania/):</span> <a href=3D"https://f5bot.com/url?u=3Dhttps%3A%2F%2Fwww.red=
+dit.com%2Fr%2FRomania%2Fcomments%2F1y53zpx%2Fc%2F19t5z6l7yyr51%3Fcontext%3D=
+3&amp;i=3D100927470&amp;h=3D8dc660e2" style=3D"color:#F15A24; font-weight:b=
+old;">S-a votat =C3=AEnfiin=C8=9Barea comisiei de anchet=C4=83 =C3=AEn cazu=
+l Bolojan / Fostul premier este a...</a> <span class=3D"f5-meta" style=3D"f=
+ont-size:14px; color:#666666;">by disc0mbobulated</span><br>=0A<span class=
+=3D"f5-excerpt" style=3D"font-family:Menlo,Consolas,'Lucida Console',Monaco=
+,monospace; font-size:16px; color:#1A1A1A; word-break:break-word; overflow-=
+wrap:anywhere;">Toate astea ar trebui s=C4=83 beneficieze de comisie de anc=
+het=C4=83 din oficiu. E vorba de implica=C8=9Bii, =C8=99i c=C4=83 acolo s-a=
+u =C3=AEnt=C3=A2mplat ni=C8=99te lucruri cu iz penal (trafic de influen=
+=C8=9B=C4=83 e un mizilic). Implica=C8=9Biile c=C4=83 Bolojan a folosit ma=
+=C8=99ina spp sunt zero. De ce? P=C4=83i =C3=AEn primul r=C3=A2nd e legal, =
+to=C8=9Bi fo=C8=99tii prim-mini=C8=99tri beneficiaza de protec=C8=9Bia spp =
+timp de 2 ani de la =C3=AEncheierea mandatului. Fo=C8=99tii pre=C8=99edin=
+=C8=9Bi permanent (p=C3=A2n=C4=83 crap=C4=83), pre=C8=99edin=C8=9Bii camere=
+lor 1 an. =C8=98i chiar =C8=99i al=C8=9Bi demnitari, la cerere, dac=C4=
+=83 se aprob=C4=83 prin <strong>CSAT</strong> (oug 46/2015, dat=C4=83 dup=
+=C4=83 faza cu Gabriel Oprea/Gigin=C4=83). </span></p>=0A<p class=3D"f5-hit=
+" style=3D"margin:8px 0 16px 10px; font-family:Arial,Helvetica,sans-serif; =
+font-size:16px; line-height:1.5; color:#1A1A1A;"><span class=3D"f5-meta" st=
+yle=3D"font-size:14px; color:#666666;">Reddit Comments (/r/Separation_Anxie=
+ty/):</span> <a href=3D"https://f5bot.com/url?u=3Dhttps%3A%2F%2Fwww.reddit.=
+com%2Fr%2FSeparation_Anxiety%2Fcomments%2F1y4t67g%2Fc%2F19t6371nwhlpe%3Fcon=
+text%3D3&amp;i=3D100927471&amp;h=3D7002a166" style=3D"color:#F15A24; font-w=
+eight:bold;">Separation anxiety success stories</a> <span class=3D"f5-meta"=
+ style=3D"font-size:14px; color:#666666;">by No_Explorer8369</span><br>=0A<=
+span class=3D"f5-excerpt" style=3D"font-family:Menlo,Consolas,'Lucida Conso=
+le',Monaco,monospace; font-size:16px; color:#1A1A1A; word-break:break-word;=
+ overflow-wrap:anywhere;">That=E2=80=99s awesome! Talking with a <strong>CS=
+AT</strong> was a huge help for me in training. I have done tons and tons o=
+f research on training methods but it was a game changer to walk through wh=
+at a session should look like, what to look for in his body language, and b=
+e able to ask questions as I was doing it! </span></p>=0A<p class=3D"f5-hit=
+" style=3D"margin:8px 0 16px 10px; font-family:Arial,Helvetica,sans-serif; =
+font-size:16px; line-height:1.5; color:#1A1A1A;"><span class=3D"f5-meta" st=
+yle=3D"font-size:14px; color:#666666;">Reddit Posts (/r/Romania2/):</span> =
+<a href=3D"https://f5bot.com/url?u=3Dhttps%3A%2F%2Fwww.reddit.com%2Fr%2FRom=
+ania2%2Fcomments%2F1y56d7z%2Fkensington_communication_spune_c%C4%83_nu_a_lu=
+at_bani%2F&amp;i=3D100927472&amp;h=3D8f74177b" style=3D"color:#F15A24; font=
+-weight:bold;">Kensington Communication spune c=C4=83 nu a luat bani s=
+=C4=83 =C3=AEl promoveze pe Georgescu: Rap...</a> <span class=3D"f5-meta" s=
+tyle=3D"font-size:14px; color:#666666;">by IUsedToBeAMod</span><br>=0A<span=
+ class=3D"f5-excerpt" style=3D"font-family:Menlo,Consolas,'Lucida Console',=
+Monaco,monospace; font-size:16px; color:#1A1A1A; word-break:break-word; ove=
+rflow-wrap:anywhere;"><strong>Keyword was found in submission title.</stron=
+g></span></p>=0A<p style=3D"margin:16px 0 0 0;">Do you have comments or sug=
+gestions about F5Bot? Please hit reply and let me know what you think!</p>=
+=0A<table role=3D"presentation" width=3D"100%" border=3D"0" cellpadding=3D"=
+0" cellspacing=3D"0" style=3D"margin:20px 0;"><tr><td align=3D"center" clas=
+s=3D"f5-ad" style=3D"background-color:#FFFFCC; border-radius:4px; padding:1=
+8px; font-family:Arial,Helvetica,sans-serif; font-size:14px; line-height:1.=
+5; color:#1A1A1A;"><p>Are you responsible for email security and phishing p=
+rotection? Cloud-based Phishing Protection with real-time url scanning and =
+sender impersonation protection. Try <a href=3D"https://f5bot.com/url?a=3D1=
+&i=3D23&h=3Da3c21f2e">PhishProtection.com</a> free to 30 days. 10 minute se=
+tup. No contracts.</p></td></tr></table>=0A<p style=3D"margin:0;"><i>Want t=
+o advertise your company or product on F5Bot? Hit reply to get in touch.</i=
+></p>=0A<p><img src=3D"https://f5bot.com/pixel?t=3D1&e=3D112804592&a=3D3829=
+9&h=3D93f4d7adac6c3d6240b9c06c80d7f6a333054fde"></p>=0A=0A</td></tr>=0A<tr>=
+<td align=3D"center" class=3D"f5-footer" style=3D"padding:20px 12px; font-f=
+amily:Arial,Helvetica,sans-serif; font-size:12px; line-height:1.6; color:#9=
+99999;">=0A<p style=3D"margin:0 0 8px 0;">You are receiving this email beca=
+use you signed up for keyword alerts at f5bot.com.</p>=0A<p style=3D"margin=
+:0 0 8px 0;"><a href=3D"https://f5bot.com/dash" class=3D"f5-footer-link" st=
+yle=3D"color:#777777;">Manage your alerts</a> &nbsp;|&nbsp; <a href=3D"http=
+s://f5bot.com/disable-all?e=3Dradar%40example.com&amp;k=3DREDACTEDKEY0&amp;=
+w=3Demail" class=3D"f5-footer-link" style=3D"color:#777777;">Unsubscribe fr=
+om all alert emails</a></p>=0A<p style=3D"margin:0;">F5Bot LLC, PO Box 86, =
+Houghton, IA 52631, USA<br>Copyright &copy; 2017-2026 F5Bot LLC. All rights=
+ reserved.</p>=0A</td></tr>=0A</table>=0A</td></tr>=0A</table>=0A</body>=0A=
+</html>=0A
+
+--1def00168eb2377c5cffeb2abd44bfaf--

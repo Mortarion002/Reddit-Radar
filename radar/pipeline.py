@@ -68,7 +68,8 @@ def send_digest(ctx: Context, summary: RunSummary, new_leads: list[Lead]) -> boo
     """Send the digest when there is something new. Lists undigested leads that weren't hot-alerted."""
     pending = ctx.store.undigested_leads(ctx.now - timedelta(hours=ctx.settings.max_lead_age_hours))
     listed = [l for l in pending if l.alerted_at is None]
-    has_new = any(l.tier in ("High", "Medium") for l in new_leads)
+    # Skipped F5Bot hits also trigger a digest, so they show up on Telegram, not only in the log.
+    has_new = any(l.tier in ("High", "Medium") for l in new_leads) or summary.skipped_hits > 0
     if not listed and not has_new:
         return False
     text = format_digest(summary, listed, ctx.now, ctx.settings.zoneinfo())

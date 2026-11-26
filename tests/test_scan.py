@@ -93,3 +93,59 @@ def test_scan_cli_with_unreachable_inbox_exits_zero(settings, capsys):
     assert "error: imap:" in out
     files = list(settings.delivery_failures_dir.glob("*_warning.txt"))
     assert len(files) == 1
+
+
+# ---- real F5Bot fixtures + skipped hits -----------------------------------------------------
+
+REAL = FIXTURES / "f5bot"
+REAL_NOW = datetime(2026, 11, 25, 16, 0, tzinfo=timezone.utc)  # a few hours after the real emails
+
+
+def test_real_fixtures_end_to_end_all_blocklisted(settings):
+    import pytest
+
+    if len(list(REAL.glob("*.eml"))) < 3:
+        pytest.skip("real F5Bot fixtures not present")
+    store, tg = Store.memory(), FakeTelegram()
+    summary = run_ingest_eml(ctx(settings, store, tg, now=REAL_NOW), REAL)
+    assert summary.emails_read == 3
+    assert summary.mentions_found == 11 and summary.new_mentions == 11
+    assert summary.skipped_hits == 0 and summary.parse_errors == 0
+    leads = store.get_leads()
+    assert len(leads) == 11
+    assert sum(l.mention.kind == "comment" for l in leads) == 7
+    # Every one of them is an exam/politics "CSAT", in a subreddit on the blocklist.
+    assert {(l.tier, l.drop_reason) for l in leads} == {("Dropped", "blocked_subreddit")}
+    assert tg.sent == []
+
+
+def test_skipped_hit_counted_in_run_summary(settings, tmp_path, capsys):
+    from .test_f5bot_parser import BAD, GOOD, _f5bot_email
+
+    folder = tmp_path / "eml"
+    folder.mkdir()
+    (folder / "mixed.eml").write_bytes(
+        _f5bot_email([("nps tool", [("Reddit Comments (/r/SaaS/):", GOOD, "Good"), ("Reddit Comments (/r/SaaS/):", BAD, "Bad")])])
+    )
+    store, tg = Store.memory(), FakeTelegram()
+    summary = run_ingest_eml(ctx(settings, store, tg, now=REAL_NOW), folder)
+    assert summary.new_mentions == 1
+    assert summary.skipped_hits == 1
+    assert any(BAD in e for e in summary.errors)
+    assert store.conn.execute("SELECT status FROM processed_emails").fetchone()[0] == "partial"
+    assert (settings.unparsed_dir / "file_mixed.eml").exists()
+    # The digest goes out and says so, even though the one good hit is Low.
+    assert tg.kinds() == ["digest"]
+    assert "Skipped hits: 1" in tg.sent[0]["text"]
+
+
+def test_cli_prints_skipped_hits(settings, tmp_path, capsys):
+    from .test_f5bot_parser import BAD, GOOD, _f5bot_email
+
+    folder = tmp_path / "eml"
+    folder.mkdir()
+    (folder / "mixed.eml").write_bytes(
+        _f5bot_email([("nps tool", [("Reddit Comments (/r/SaaS/):", GOOD, "Good"), ("Reddit Comments (/r/SaaS/):", BAD, "Bad")])])
+    )
+    assert main(["ingest-eml", "--dir", str(folder), "--dry-run"], settings=settings) == 0
+    assert "skipped hits: 1" in capsys.readouterr().out

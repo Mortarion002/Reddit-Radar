@@ -7,7 +7,7 @@ Claude Code updates this after each stage. Record the date, what was built, any 
 | 1 Setup, config, models | done | 2026-11-25 | Skeleton, Settings, redacting logger, Mention + URL parsing, `config-check`. |
 | 2 Storage + scoring | done (awaiting Aman's leads review) | 2026-11-25 | SQLite store with migrations, scorer, `import` / `leads` / `rescore`, 26-mention synthetic sample. |
 | 3 Telegram + export | done (real Telegram check pending) | 2026-11-25 | Telegram client with failure preservation + DNS fallback, alerts/digest, leads export, shared pipeline, `telegram-test`. |
-| 4 F5Bot email ingest | built on synthetic emails (real `.eml` check pending) | 2026-11-25 | IMAP reader, format-tolerant parser, `scan`, `ingest-eml`, throttled inbox warning, pause check. |
+| 4 F5Bot email ingest | done, parser fixed against 3 real `.eml` (live scan pending) | 2026-11-26 | IMAP reader, format-tolerant parser, `scan`, `ingest-eml`, throttled inbox warning, pause check. |
 | 5 Claude reply drafts | done (live Telegram check pending) | 2026-11-25 | Draft validation, mention ratio, `send-drafts`, README drafting section. |
 | 6 Feedback + stats | done (real taps check pending) | 2026-11-25 | Button taps -> lead status, /stats /pause /resume, weekly stats with per-keyword quality, ratio from tap data. |
 | 7 Scheduling + ops | done (unattended cycle check pending) | 2026-11-25 | PowerShell wrappers, task registration, headless drafting, `doctor`, housekeeping, README. |
@@ -40,7 +40,7 @@ Reddit shut down public RSS feeds on Nov 13, 2026, stopped accepting new API acc
 ### Stage 4 (2026-11-25)
 - Built: `radar/sources/f5bot_parser.py` (`parse_email`, `ParseError`, redirect unwrapping), `radar/sources/f5bot_mail.py` (`Mailbox`: `IMAP4_SSL` -> login -> select -> `UID SEARCH FROM "<sender>" SINCE <date>` -> `BODY.PEEK[]` -> `+FLAGS (\Seen)` after success), `radar/ingest.py` (`run_scan`, `run_ingest_eml`, unparsed handling, 6-hour throttled "F5Bot inbox unreachable" warning, pause check), CLI `scan` and `ingest-eml`. Schema unchanged.
 - **No real F5Bot emails were available.** The stage file says not to start without them; Aman asked for the whole project built with placeholder data, so the parser was built to be format-tolerant and tested on **synthetic** emails in `tests/fixtures/f5bot_synthetic/`, which follow the best-known F5Bot layout. They are not real F5Bot output.
-- **F5Bot format assumed by the synthetic fixtures (to confirm against real emails):**
+- **F5Bot format assumed by the synthetic fixtures** (superseded by the real format in the 2026-11-26 fix below; the synthetic emails are kept as extra parser tests):
   - Subject: `F5Bot found something: <keyword>` (used only as the keyword fallback)
   - From: `F5Bot <admin@f5bot.com>` (`.env` keeps `F5BOT_SENDER=REPLACE_ME` until you copy the real address)
   - multipart/alternative, HTML preferred, plain text fallback
@@ -50,6 +50,25 @@ Reddit shut down public RSS feeds on Nov 13, 2026, stopped accepting new API acc
   - footer with settings/unsubscribe links on f5bot.com
 - What the parser actually relies on: the order of links. Each link to a Reddit permalink (after unwrapping `?u=` / `?url=` / `?q=` style redirects) starts a match: link text = title, the text up to the next link = snippet, and an optional `Keyword:` line. HN/Lobsters links are skipped (logged at debug). Other links end the current match. Section headers, footer lines and `--` separators are stripped from snippets.
 - **When real emails arrive:** drop them in `tests/fixtures/f5bot/`, run `python -m radar ingest-eml --dir tests/fixtures/f5bot --dry-run`, and check the titles and snippets. `tests/test_f5bot_parser.py::test_real_fixture_parses` runs on every real file automatically, and `expected.json` (see the README there) pins exact counts and fields.
+
+### Stage 4 fix: real F5Bot emails (2026-11-26)
+- **Bug:** `ingest-eml` on the 3 real fixtures found 4 hits (the posts) out of 11; all 7 comments were dropped silently. Two causes:
+  1. F5Bot comment links unwrap to `/r/{sub}/comments/{post_id}/c/{comment_id}?context=3` (a literal `c` instead of the slug).
+  2. Real comment ids are 13 characters (`19t5tnte5nfsw`), and the id check only allowed 2 to 12. This alone rejected every comment; the parser then treated the link as "not a hit" and moved on without a word.
+- **Fixes:**
+  - `parse_reddit_url` accepts `/comments/{post_id}/c/{comment_id}` (plus `.../comment/{id}` and the normal `.../{slug}/{comment_id}/`), allows ids of 2 to 20 characters, and drops the query string. Comment URLs are stored canonically as `https://www.reddit.com/r/{sub}/comments/{post_id}/_/{comment_id}/`.
+  - No hit is skipped silently any more. A link that looks like a hit (an F5Bot `?u=` redirect, or any reddit.com URL) but doesn't parse is logged as a warning with the URL and returned in `ParseResult.failed_hits` (new `parse_email_result`; `parse_email` still returns just the mentions). `ingest` counts these in `RunSummary.skipped_hits`, records each URL in `runs.errors`, marks the email `partial` in `processed_emails`, and saves a copy to `data/unparsed/`. The CLI summary and the Telegram digest show "Skipped hits: N", and a run with skipped hits always sends the digest. An email where every hit fails raises `ParseError` carrying the URLs.
+  - Real layout handled: the `Keyword: "csat"` `<h2>` heading applies to the hits below it; the `by <author>` line after the link fills `author`; the `Keyword was found in submission title.` line is dropped from snippets; F5Bot's own text after the last hit ("Do you have comments or suggestions about F5Bot?", the ad block, the footer) ends the current hit, so the sponsor ad copy no longer ends up in the last hit's snippet (it did in `csat (1).eml` and `csat (2).eml`). The plain-text body's `Reddit Posts (/r/x/): 'Title' by author` lines are understood too (fallback only).
+  - `config/subreddits.yaml` blocklist: `upsc, upscbharat, upsccritics, gpsc, romania, romania2, bolehland, separation_anxiety, fittheword`.
+- **Real F5Bot format** (replaces the assumed format below):
+  - From `F5Bot Alerts <alerts@f5bot.com>`, so set `F5BOT_SENDER=alerts@f5bot.com`. Subject `F5Bot found something: <keyword>`.
+  - multipart/alternative (text + HTML). HTML: `<h2>Keyword: "csat"</h2>`, then one `<p class="f5-hit">` per hit: `<span>Reddit Posts (/r/UPSC/):</span> <a href="https://f5bot.com/url?u=<encoded URL>&i=..&h=..">thread title</a> <span>by Spare-upsc-80</span><br><span class="f5-excerpt"><strong>Keyword was found in submission title.</strong><br>excerpt...</span>`. Comments carry the thread title as link text.
+  - Posts: `/r/{sub}/comments/{post_id}/{slug}/`. Comments: `/r/{sub}/comments/{post_id}/c/{comment_id}?context=3`.
+  - A link post with the keyword only in its title has an empty excerpt (e.g. `post:1y56d7z`).
+  - After the hits: "Do you have comments or suggestions about F5Bot?", a sponsor block (`f5bot.com/url?a=..`, no `u=`), then footer links (`/dash`, `/disable-all?e=<your address>&k=<key>`).
+  - No Hacker News or Lobsters hits in these emails.
+- **Fixture results** (asserted in `tests/test_f5bot_parser.py`): `csat.eml` 4 (1 post, 3 comments), `csat (1).eml` 4 (1 post, 3 comments), `csat (2).eml` 3 (2 posts, 1 comment); 11 total. All 11 are exam/politics "CSAT" in blocklisted subreddits, so they're all Dropped (`blocked_subreddit`) end to end (`tests/test_scan.py`).
+- 220 tests pass, 0 skipped.
 
 ### Stage 5 (2026-11-25)
 - Checked `.claude/commands/draft-replies.md` and `docs/REPLY_RULES.md`: both already use `mention_id` and the right paths. Not changed.
@@ -81,6 +100,7 @@ Reddit shut down public RSS feeds on Nov 13, 2026, stopped accepting new API acc
 - Stage 6: `stats` prints a plain-text copy to the console and sends the HTML version to Telegram (`--no-send` to skip sending).
 - Stage 5: `validate` also flags unicode arrows (CLAUDE.md says write "->"). Bare domains other than `elvan.ai` count as links (e.g. `survicate.com`), and so does `https://elvan.ai`. A "competitor price" is a `$<digit>` in the same sentence as a competitor name from `signals.yaml`.
 - Stage 5: a draft whose lead isn't in the DB is still sent, with a minimal header.
+- Stage 4 fix: a partly parsed email (some hits skipped) is still processed and marked `\Seen`, but recorded as `status='partial'`, and a copy is saved to `data/unparsed/` so the skipped hits can be checked by hand.
 - Stage 4: `ParseError` is also raised for an email with no Reddit match, no HN/Lobsters match **and no links** (stricter than spec), so an unexpected F5Bot email lands in `data/unparsed/` instead of being silently ignored. HN-only emails are recorded as `status='no_reddit'` and marked seen.
 - Stage 4: emails that fail to parse are recorded (`status='parse_error'`) so they aren't refetched, but they are **not** marked `\Seen`, so they stay visible in Gmail.
 - Stage 4: the folder is opened read-only when `--dry-run` is set or `IMAP_MARK_SEEN=false`.
@@ -100,7 +120,8 @@ Reddit shut down public RSS feeds on Nov 13, 2026, stopped accepting new API acc
 
 ## Known issues
 
-1. **F5Bot parser not yet checked against real emails.** It was built on synthetic emails (stage 4 notes). First thing to do once alerts arrive: save 3 to 5 `.eml` files into `tests/fixtures/f5bot/` and run `ingest-eml --dry-run` plus the parser tests.
+1. **F5Bot parser checked against only 3 real emails**, all with the keyword `csat`, all Reddit (no HN/Lobsters) and one keyword group each. Add a multi-keyword email when one arrives. Watch the run summary for "Skipped hits". `.env` should use `F5BOT_SENDER=alerts@f5bot.com`.
+1a. **The real `.eml` fixtures contain your alert address and F5Bot's unsubscribe key** (`/disable-all?e=...&k=...`), which would let anyone turn off your alerts. Redact the key or gitignore `tests/fixtures/f5bot/*.eml` before committing them.
 2. **Placeholder `.env`.** Every secret is `REPLACE_ME`. Telegram, IMAP and `F5BOT_SENDER` must be filled in. `doctor` lists what's missing.
 3. **Delete `data/` before going live**, so placeholder-run messages in `data/delivery_failures/` aren't resent.
 4. Tasks run only while you're logged in (Interactive logon, needed by Claude Code) and while the PC is on or able to wake.
@@ -111,6 +132,8 @@ Reddit shut down public RSS feeds on Nov 13, 2026, stopped accepting new API acc
 9. The Balram question (Klaviyo/Mailchimp/Braze/HubSpot integrations) is still open; `REPLY_RULES.md` keeps them under "Never claim".
 
 ## Tuning notes (false positives, keyword changes)
+
+- 2026-11-26: the first 3 real F5Bot emails for `csat` were all noise: the UPSC/GPSC civil-services aptitude test (India), Romania's CSAT (Supreme Defence Council), South Korea's CSAT exam, and "certified separation anxiety trainer". Those subreddits are now blocklisted. The bare keyword `csat` on f5bot.com will keep producing this; consider replacing it with `csat survey`, `csat tool` and `zendesk csat` (already in the F5Bot list) if the stats show a high noise rate.
 
 - `ltd` is a promo phrase (per spec) and would also drop a post from "Acme Pvt Ltd". Watch for this; remove it from `promo_phrases` if it bites.
 - `hiring` drops any post containing the word, even "we're hiring and also need an NPS tool". Kept per spec.

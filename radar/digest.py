@@ -23,6 +23,7 @@ class RunSummary:
     tiers: dict[str, int] = field(default_factory=dict)
     alerts_sent: int = 0
     parse_errors: int = 0
+    skipped_hits: int = 0  # F5Bot hits whose Reddit URL could not be parsed
     errors: list[str] = field(default_factory=list)
 
     @property
@@ -101,6 +102,8 @@ def format_summary(summary: RunSummary, now: datetime, tz: tzinfo) -> str:
         lines.append(f"Hot alerts sent: {summary.alerts_sent}")
     if summary.parse_errors:
         lines.append(f"Parse errors: {summary.parse_errors} (saved to data/unparsed/)")
+    if summary.skipped_hits:
+        lines.append(f"Skipped hits: {summary.skipped_hits} (URL didn't parse, see data/logs/radar.log)")
     return "\n".join(lines)
 
 

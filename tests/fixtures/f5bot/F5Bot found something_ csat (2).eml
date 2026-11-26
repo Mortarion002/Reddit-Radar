@@ -1,0 +1,232 @@
+Delivered-To: radar@example.com
+Received: by 2002:a05:6400:35d3:b0:2e8:5802:72bb with SMTP id po19csp5703983ecc;
+        Wed, 25 Nov 2026 07:05:32 -0800 (PST)
+X-Received: by 2002:a05:690c:e18a:b0:8b5:35e0:62f4 with SMTP id 00721157ae682-8b535e06352mr69468597b3.3.1795619132358;
+        Wed, 25 Nov 2026 07:05:32 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1795619132; cv=none;
+        d=google.com; s=arc-20260327;
+        b=WH5+4eSx35ybWAaPG6MYtZaqhcN5c6lvsLTUmmEFyM8Ji970wjI7yAcjlNb9xGVMHf
+         RFhApxW5vd5vBUEDb6UqiGxZk/SE894yREtg+cp6c1/dZ6MLK5CKdFwlasUBQMgrUPk2
+         TEgizqZcyh8QQRSA4Il2mWX2feYQh4DwjiEmScNr27v6JXMoosWtC8SZlkcCwa9G4hdC
+         GRX/E0a0avI8actySEMQFc5hkKuvZxW46x2Js+ZludQI3XyACH8ftIsnOFyeZd+/JEKI
+         tefz7RACBa4faLxl9L4m5GeBtkwiSG/fWMHEYEKCt5QnGJEkLyLLZTSYEK1zo5+altDo
+         v6PQ==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20260327;
+        h=date:mime-version:list-unsubscribe:list-unsubscribe-post:list-id
+         :auto-submitted:message-id:reply-to:from:subject:to:dkim-signature;
+        bh=9f7bzgT5fVCS0bdOPsjAV17k4nuxoV4Rj2P0aCjf83I=;
+        fh=0AV0GQQO3rO6bHZa723uIOSBIeBA+grtAj4SlruysPg=;
+        b=GLCPsN9WzEPhckSjx7cbC+3o8AV4m7gy8MzGoGTKMLTXl1BvI1fO7crs8y+i12qaXN
+         CgcrXWoE9wzL+Y2X9l4dBP/nBe1S0iEZ4+lnELaAu69lny7/wgBlupTc8EUe/E0XxlmU
+         tzDqL7jIeOr4nVc19HWt/1wD3DEK/j+pL+5IVYjdcDucXAFBos7pD7erufaeFgFt1vzO
+         KVlvNPubXCVeZbl4AWcYfWPVQNw2LsmxlUTucJ5xtcPUKyINqPUW0YQkuglbWZjBau08
+         rutOUBCm3Saun1FL6FiKS/zggo+AwDasqpXLTky62kcF/FAdK6SIsJbJ5Gac+MJjiVNZ
+         j3tw==;
+        dara=google.com
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@f5bot.com header.s=20260712 header.b=fLIpNzqF;
+       spf=pass (google.com: domain of admin@f5bot.com designates 173.230.139.58 as permitted sender) smtp.mailfrom=admin@f5bot.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=f5bot.com
+Return-Path: <admin@f5bot.com>
+Received: from f5bot.com (f5bot.com. [173.230.139.58])
+        by mx.google.com with ESMTPS id 00721157ae682-8b5203b34b8si64288327b3.178.2026.11.25.07.05.31
+        for <radar@example.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Wed, 25 Nov 2026 07:05:32 -0800 (PST)
+Received-SPF: pass (google.com: domain of admin@f5bot.com designates 173.230.139.58 as permitted sender) client-ip=173.230.139.58;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@f5bot.com header.s=20260712 header.b=fLIpNzqF;
+       spf=pass (google.com: domain of admin@f5bot.com designates 173.230.139.58 as permitted sender) smtp.mailfrom=admin@f5bot.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=f5bot.com
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed; d=f5bot.com;
+	s=20260712; h=Date:Content-type:MIME-Version:List-Unsubscribe:List-Id:
+	Message-ID:Reply-To:From:Subject:To:Sender:Cc:Content-Transfer-Encoding:
+	Content-ID:Content-Description:Resent-Date:Resent-From:Resent-Sender:
+	Resent-To:Resent-Cc:Resent-Message-ID:In-Reply-To:References:List-Help:
+	List-Subscribe:List-Post:List-Owner:List-Archive;
+	bh=9f7bzgT5fVCS0bdOPsjAV17k4nuxoV4Rj2P0aCjf83I=; b=fLIpNzqFvP4LaCl7eeJ1mQOou+
+	bX9fZ++4g+DXsUROmaElrKYosbhjLnWZNSTOOl4uVE6xlOiL0n/9GumQ8ZWLBu2O3PfJVpMEammtE
+	Y92DsyOCM086CKd2h8WtOqjA69E447O/EwJYTFDE6WMqb0L7fd9bjT5R4xkjsWcaQRAyMWYC3IcVR
+	wCV89BPP5SCgksMitOIeG8RCOpvnG2Y1rVXhOR7idO4mE+zqqSMHI3hq+vGED3lgXexVU9H0YXeZk
+	y/IY3kpoW8FCEpRcXJDM1Rx0G45DipGEkLedCeStg7n0uGVMyy1ixBdkzfyoh2hRPsCEWahwsmkQg
+	tL8nazQw==;
+Received: from www-data by static.atdhq.com with local (Exim 4.96)
+	(envelope-from <admin@f5bot.com>)
+	id 1xWEYt-00DVMa-1V
+	for radar@example.com;
+	Wed, 25 Nov 2026 15:05:31 +0000
+To: Radar Test <radar@example.com>
+Subject: F5Bot found something: csat
+From: F5Bot Alerts <alerts@f5bot.com>
+Reply-To: support@f5bot.com
+X-Mailer: F5Bot 1.0
+Message-ID: <a43feba5cc0093579fc5f0e25f2e2db4@f5bot.com>
+Auto-Submitted: auto-generated
+X-Auto-Response-Suppress: OOF, AutoReply
+List-Id: F5Bot Alert <f5bot.com>
+List-Unsubscribe-Post: List-Unsubscribe=One-Click
+List-Unsubscribe: <https://f5bot.com/disable-all?e=radar%40example.com&k=REDACTEDKEY0&w=head>
+MIME-Version: 1.0
+Content-type: multipart/alternative; boundary="4a56254b005413f0967d6759874b3533"
+Date: Wed, 25 Nov 2026 15:05:31 +0000
+
+This is a multipart message using MIME. If you're seeing this, then your email client may not support that.
+
+--4a56254b005413f0967d6759874b3533
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+F5Bot found something!=0A=0A=0AKeyword: "csat"=0A  Reddit Posts (/r/UPSCBha=
+rat/): 'is it worth continuing at vision ias GMMR?' by True_Fisherman_417=
+=0A    https://f5bot.com/url?u=3Dhttps%3A%2F%2Fwww.reddit.com%2Fr%2FUPSCBha=
+rat%2Fcomments%2F1y56u9r%2Fis_it_worth_continuing_at_vision_ias_gmmr%2F&i=
+=3D100949398&h=3Dfe3d008f=0A  Reddit Posts (/r/UPSCCRITICS/): 'is it worth =
+continuing at vision ias GMMR?' by True_Fisherman_417=0A    https://f5bot.c=
+om/url?u=3Dhttps%3A%2F%2Fwww.reddit.com%2Fr%2FUPSCCRITICS%2Fcomments%2F1y56=
+x9s%2Fis_it_worth_continuing_at_vision_ias_gmmr%2F&i=3D100949399&h=3D165094=
+43=0A  Reddit Comments (/r/FitTheWord/): 'Hardest National University Entra=
+nce Exams (created by u/namelessberry)' by PrestigeFlight2022=0A    https:/=
+/f5bot.com/url?u=3Dhttps%3A%2F%2Fwww.reddit.com%2Fr%2FFitTheWord%2Fcomments=
+%2F1wej8sv%2Fc%2F19t658vsfw6sj%3Fcontext%3D3&i=3D100949400&h=3D5cc669d6=0A=
+=0A=0AKeyword *csat* has hit its daily limit and was paused. It will automa=
+tically turn back on in 24 hours.=0A=0A=0ADo you have comments or suggestio=
+ns about F5Bot? Please hit reply and let me know what you think!=0A=0AAre y=
+ou responsible for email security and phishing protection? Cloud-based Phis=
+hing Protection with real-time url scanning and sender impersonation protec=
+tion. Try PhishProtection.com free to 30 days. 10 minute setup. No contract=
+s.=0A=0AWant to advertise your company or product on F5Bot? Hit reply to ge=
+t in touch.=0A=0A=0A=0AYou are receiving this email because you signed up f=
+or alerts from F5Bot.=0AIf you no longer wish to receive these emails, plea=
+se log into your account at=0Ahttps://f5bot.com or visit the link below to =
+disable all future emails:=0Ahttps://f5bot.com/disable-all?e=3Dradar%40example.com&k=3DREDACTEDKEY0&w=3Demail=0A
+
+--4a56254b005413f0967d6759874b3533
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE html>=0A<html>=0A<head>=0A<meta charset=3D"utf-8">=0A<meta name=
+=3D"viewport" content=3D"width=3Ddevice-width, initial-scale=3D1.0">=0A<met=
+a name=3D"color-scheme" content=3D"light dark">=0A<meta name=3D"supported-c=
+olor-schemes" content=3D"light dark">=0A<title>F5Bot</title>=0A<style>=0A:r=
+oot { color-scheme: light dark; supported-color-schemes: light dark; }=0A@m=
+edia (prefers-color-scheme: dark) {=0A  .f5-page { background-color:#121212=
+ !important; }=0A  .f5-preheader { color:#121212 !important; }=0A  .f5-card=
+ { background-color:#242424 !important; }=0A  .f5-body { color:#E8E8E8 !imp=
+ortant; }=0A  .f5-heading { color:#FFFFFF !important; }=0A  .f5-hit-heading=
+ { color:#FFFFFF !important; }=0A  .f5-hit { color:#E8E8E8 !important; }=0A=
+  .f5-meta { color:#A0A0A0 !important; }=0A  .f5-excerpt { color:#E8E8E8 !i=
+mportant; }=0A  .f5-notice { background-color:#33280F !important; color:#ED=
+E6D8 !important; }=0A  .f5-ad { background-color:#33331F !important; color:=
+#E8E8DC !important; }=0A  /* No !important, so the house ad button keeps it=
+s inline color. */=0A  .f5-ad a { color:#FFB86B; }=0A  .f5-footer { color:#=
+9A9A9A !important; }=0A  .f5-footer-link { color:#A8A8A8 !important; }=0A}=
+=0A</style>=0A</head>=0A<body class=3D"f5-page" style=3D"margin:0; padding:=
+0; background-color:#F4F4F4;">=0A<span class=3D"f5-preheader" style=3D"disp=
+lay:none; font-size:1px; color:#F4F4F4; line-height:1px; max-height:0px; ma=
+x-width:0px; opacity:0; overflow:hidden;">New mentions: csat</span>=0A<tabl=
+e role=3D"presentation" class=3D"f5-page" width=3D"100%" border=3D"0" cellp=
+adding=3D"0" cellspacing=3D"0" style=3D"background-color:#F4F4F4;">=0A<tr><=
+td align=3D"center" style=3D"padding:24px 12px;">=0A<table role=3D"presenta=
+tion" width=3D"640" border=3D"0" cellpadding=3D"0" cellspacing=3D"0" style=
+=3D"width:100%; max-width:640px;">=0A<tr><td align=3D"center" class=3D"f5-c=
+ard" style=3D"background-color:#FFFFFF; border-radius:4px 4px 0 0; padding:=
+20px 0 16px 0;">=0A<a href=3D"https://f5bot.com"><img src=3D"https://f5bot.=
+com/public/images/logo-header-alpha.png" width=3D"150" height=3D"80" alt=3D=
+"F5Bot" style=3D"display:block; border:0;"></a>=0A</td></tr>=0A<tr><td clas=
+s=3D"f5-card f5-body" style=3D"background-color:#FFFFFF; border-top:3px sol=
+id #F15A24; border-radius:0 0 4px 4px; padding:28px 36px; font-family:Arial=
+,Helvetica,sans-serif; font-size:16px; line-height:1.5; color:#1A1A1A;">=0A=
+<p class=3D"f5-heading" style=3D"font-size:22px; font-weight:bold; margin:0=
+ 0 4px 0; color:#000000;">F5Bot found something!</p>=0A<table role=3D"prese=
+ntation" width=3D"100%" border=3D"0" cellpadding=3D"0" cellspacing=3D"0" st=
+yle=3D"margin:20px 0;"><tr><td class=3D"f5-notice" style=3D"background-colo=
+r:#FFF8E1; border:1px solid #FBB03B; border-radius:4px; padding:14px 18px; =
+font-family:Arial,Helvetica,sans-serif; font-size:16px; line-height:1.5; co=
+lor:#1A1A1A;">Keyword <b>csat</b> has hit its daily limit and was paused. I=
+t will automatically turn back on in 24 hours.</td></tr></table>=0A<h2 clas=
+s=3D"f5-hit-heading" style=3D"margin:24px 0 8px 0; font-family:Arial,Helvet=
+ica,sans-serif; font-size:19px; font-weight:bold; color:#000000;">Keyword: =
+&quot;csat&quot;</h2>=0A<p class=3D"f5-hit" style=3D"margin:8px 0 16px 10px=
+; font-family:Arial,Helvetica,sans-serif; font-size:16px; line-height:1.5; =
+color:#1A1A1A;"><span class=3D"f5-meta" style=3D"font-size:14px; color:#666=
+666;">Reddit Posts (/r/UPSCBharat/):</span> <a href=3D"https://f5bot.com/ur=
+l?u=3Dhttps%3A%2F%2Fwww.reddit.com%2Fr%2FUPSCBharat%2Fcomments%2F1y56u9r%2F=
+is_it_worth_continuing_at_vision_ias_gmmr%2F&amp;i=3D100949398&amp;h=3Dfe3d=
+008f" style=3D"color:#F15A24; font-weight:bold;">is it worth continuing at =
+vision ias GMMR?</a> <span class=3D"f5-meta" style=3D"font-size:14px; color=
+:#666666;">by True_Fisherman_417</span><br>=0A<span class=3D"f5-excerpt" st=
+yle=3D"font-family:Menlo,Consolas,'Lucida Console',Monaco,monospace; font-s=
+ize:16px; color:#1A1A1A; word-break:break-word; overflow-wrap:anywhere;">hi=
+, I&#039;m a student of vision has 2027 GS Foundation with <strong>CSAT</st=
+rong> . I had already paid 1 lk fee , and due to the disturbances I&#039;ve=
+ stopped paying rest of the installments. today they have blocked my online=
+ access and have not provided any materials yet , being 7 months. is it wor=
+th continuing over there? </span></p>=0A<p class=3D"f5-hit" style=3D"margin=
+:8px 0 16px 10px; font-family:Arial,Helvetica,sans-serif; font-size:16px; l=
+ine-height:1.5; color:#1A1A1A;"><span class=3D"f5-meta" style=3D"font-size:=
+14px; color:#666666;">Reddit Posts (/r/UPSCCRITICS/):</span> <a href=3D"htt=
+ps://f5bot.com/url?u=3Dhttps%3A%2F%2Fwww.reddit.com%2Fr%2FUPSCCRITICS%2Fcom=
+ments%2F1y56x9s%2Fis_it_worth_continuing_at_vision_ias_gmmr%2F&amp;i=3D1009=
+49399&amp;h=3D16509443" style=3D"color:#F15A24; font-weight:bold;">is it wo=
+rth continuing at vision ias GMMR?</a> <span class=3D"f5-meta" style=3D"fon=
+t-size:14px; color:#666666;">by True_Fisherman_417</span><br>=0A<span class=
+=3D"f5-excerpt" style=3D"font-family:Menlo,Consolas,'Lucida Console',Monaco=
+,monospace; font-size:16px; color:#1A1A1A; word-break:break-word; overflow-=
+wrap:anywhere;"> hi, I&#039;m a student of vision has 2027 GS Foundation wi=
+th <strong>CSAT</strong> . I had already paid 1 lk fee , and due to the dis=
+turbances I&#039;ve stopped paying rest of the installments. today they hav=
+e blocked my online access and have not provided any materials yet , being =
+7 months. is it worth continuing over there? </span></p>=0A<p class=3D"f5-h=
+it" style=3D"margin:8px 0 16px 10px; font-family:Arial,Helvetica,sans-serif=
+; font-size:16px; line-height:1.5; color:#1A1A1A;"><span class=3D"f5-meta" =
+style=3D"font-size:14px; color:#666666;">Reddit Comments (/r/FitTheWord/):<=
+/span> <a href=3D"https://f5bot.com/url?u=3Dhttps%3A%2F%2Fwww.reddit.com%2F=
+r%2FFitTheWord%2Fcomments%2F1wej8sv%2Fc%2F19t658vsfw6sj%3Fcontext%3D3&amp;i=
+=3D100949400&amp;h=3D5cc669d6" style=3D"color:#F15A24; font-weight:bold;">H=
+ardest National University Entrance Exams (created by u/namelessberry)</a> =
+<span class=3D"f5-meta" style=3D"font-size:14px; color:#666666;">by Prestig=
+eFlight2022</span><br>=0A<span class=3D"f5-excerpt" style=3D"font-family:Me=
+nlo,Consolas,'Lucida Console',Monaco,monospace; font-size:16px; color:#1A1A=
+1A; word-break:break-word; overflow-wrap:anywhere;"> =E2=94=8F=E2=94=81 =
+=F0=9F=8E=9A=EF=B8=8F BLIND TIER =C2=B7 u/PrestigeFlight2022 =E2=94=81=
+=E2=94=81=E2=94=81=E2=94=81 =E2=94=83 Hardest National University Entrance =
+Exams =E2=94=A3=E2=94=81=E2=94=81=E2=94=81=E2=94=81=E2=94=81=E2=94=81=
+=E2=94=81=E2=94=81=E2=94=81=E2=94=81=E2=94=81=E2=94=81=E2=94=81=E2=94=81=
+=E2=94=81=E2=94=81=E2=94=81=E2=94=81=E2=94=81=E2=94=81=E2=94=81=E2=94=81=
+=E2=94=81=E2=94=81 =E2=94=83 =F0=9F=9F=A5 S Gaokao (China), <strong>CSAT</s=
+trong>/Suneung (South Korea), JEE Advanced (India) =E2=94=83 =F0=9F=9F=
+=A7 A JEE Main (India) =E2=94=83 =F0=9F=9F=A8 B A levels (United Kingdom), =
+IB Diploma (International), AP Exams (United States), French Baccalaur=
+=C3=A9at, German Abitur, HKDSE (Hong Kong), Japanese Common Test =E2=94=
+=83 =F0=9F=9F=A9 C SAT (United States) =E2=94=83 =F0=9F=9F=A6 D =E2=80=
+=94 =E2=94=83 =F0=9F=9F=AA F =E2=80=94 =E2=94=97=E2=94=81=E2=94=81=E2=94=
+=81=E2=94=81=E2=94=81=E2=94=81=E2=94=81=E2=94=81=E2=94=81=E2=94=81=E2=94=
+=81=E2=94=81=E2=94=81=E2=94=81=E2=94=81=E2=94=81=E2=94=81=E2=94=81=E2=94=
+=81=E2=94=81=E2=94=81=E2=94=81=E2=94=81=E2=94=81 </span></p>=0A<p style=3D"=
+margin:16px 0 0 0;">Do you have comments or suggestions about F5Bot? Please=
+ hit reply and let me know what you think!</p>=0A<table role=3D"presentatio=
+n" width=3D"100%" border=3D"0" cellpadding=3D"0" cellspacing=3D"0" style=3D=
+"margin:20px 0;"><tr><td align=3D"center" class=3D"f5-ad" style=3D"backgrou=
+nd-color:#FFFFCC; border-radius:4px; padding:18px; font-family:Arial,Helvet=
+ica,sans-serif; font-size:14px; line-height:1.5; color:#1A1A1A;"><p>Are you=
+ responsible for email security and phishing protection? Cloud-based Phishi=
+ng Protection with real-time url scanning and sender impersonation protecti=
+on. Try <a href=3D"https://f5bot.com/url?a=3D1&i=3D23&h=3Da3c21f2e">PhishPr=
+otection.com</a> free to 30 days. 10 minute setup. No contracts.</p></td></=
+tr></table>=0A<p style=3D"margin:0;"><i>Want to advertise your company or p=
+roduct on F5Bot? Hit reply to get in touch.</i></p>=0A<p><img src=3D"https:=
+//f5bot.com/pixel?t=3D1&e=3D112820279&a=3D38299&h=3D2ff5597185852a5c8323317=
+86261e9aa2b5cd5e2"></p>=0A=0A</td></tr>=0A<tr><td align=3D"center" class=3D=
+"f5-footer" style=3D"padding:20px 12px; font-family:Arial,Helvetica,sans-se=
+rif; font-size:12px; line-height:1.6; color:#999999;">=0A<p style=3D"margin=
+:0 0 8px 0;">You are receiving this email because you signed up for keyword=
+ alerts at f5bot.com.</p>=0A<p style=3D"margin:0 0 8px 0;"><a href=3D"https=
+://f5bot.com/dash" class=3D"f5-footer-link" style=3D"color:#777777;">Manage=
+ your alerts</a> &nbsp;|&nbsp; <a href=3D"https://f5bot.com/disable-all?e=
+=3Dradar%40example.com&amp;k=3DREDACTEDKEY0&amp;w=3Demail" class=3D"f5-foot=
+er-link" style=3D"color:#777777;">Unsubscribe from all alert emails</a></p>=
+=0A<p style=3D"margin:0;">F5Bot LLC, PO Box 86, Houghton, IA 52631, USA<br>=
+Copyright &copy; 2017-2026 F5Bot LLC. All rights reserved.</p>=0A</td></tr>=
+=0A</table>=0A</td></tr>=0A</table>=0A</body>=0A</html>=0A
+
+--4a56254b005413f0967d6759874b3533--

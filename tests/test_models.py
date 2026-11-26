@@ -29,6 +29,27 @@ def test_new_style_comment_url():
     assert parse_reddit_url(url) == ("SaaS", "abc123", "def456")
 
 
+def test_f5bot_c_comment_url():
+    # The form F5Bot comment links unwrap to: a literal "c" in place of the slug, plus ?context=3.
+    url = "https://www.reddit.com/r/UPSC/comments/1y52bmg/c/19t5tnte5nfsw?context=3"
+    assert parse_reddit_url(url) == ("UPSC", "1y52bmg", "19t5tnte5nfsw")
+    assert parse_reddit_url(url.replace("?context=3", "/")) == ("UPSC", "1y52bmg", "19t5tnte5nfsw")
+    m = _mention(url)
+    assert m.mention_id == "comment:19t5tnte5nfsw"
+    assert m.kind == "comment"
+    assert m.url == "https://www.reddit.com/r/UPSC/comments/1y52bmg/_/19t5tnte5nfsw/"
+
+
+def test_slug_comment_url_still_works_with_long_ids():
+    url = "https://www.reddit.com/r/UPSC/comments/1y52bmg/help_with_csat/19t5tnte5nfsw/?context=3"
+    assert parse_reddit_url(url) == ("UPSC", "1y52bmg", "19t5tnte5nfsw")
+    assert _mention(url).url.endswith("/1y52bmg/help_with_csat/19t5tnte5nfsw/")
+
+
+def test_post_with_slug_c_is_a_post():
+    assert parse_reddit_url("https://www.reddit.com/r/SaaS/comments/abc123/c/") == ("SaaS", "abc123", None)
+
+
 def test_query_string_and_no_trailing_slash():
     url = "https://www.reddit.com/r/SaaS/comments/abc123/title/def456?utm_source=share&context=3"
     assert parse_reddit_url(url) == ("SaaS", "abc123", "def456")
