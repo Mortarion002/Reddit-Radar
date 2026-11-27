@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .digest import status_buttons
-from .pipeline import Context
+from .pipeline import Context, resend_pending
 from .stats import compute_stats, format_stats
 from .telegram import TelegramError
 
@@ -86,6 +86,7 @@ def handle_message(ctx: Context, message: dict[str, Any], result: FeedbackResult
 
 def run_feedback(ctx: Context) -> FeedbackResult:
     result = FeedbackResult()
+    resend_pending(ctx)  # e.g. drafts that failed at 19:30 go out at the 23:30 feedback run
     last = int(ctx.store.get_state(OFFSET_KEY, "0") or 0)
     try:
         updates = ctx.telegram.get_updates(last + 1 if last else None)

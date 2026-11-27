@@ -41,7 +41,7 @@ def test_dry_run_deletes_nothing(settings, capsys):
 
 
 def test_missing_folders_are_fine(settings):
-    assert run_housekeeping(settings, NOW) == {"leads": 0, "drafts": 0, "unparsed": 0, "task_log_rotated": 0}
+    assert run_housekeeping(settings, NOW) == {"leads": 0, "drafts": 0, "unparsed": 0, "refused_messages": 0, "task_log_rotated": 0}
 
 
 def test_task_log_rotated(settings):

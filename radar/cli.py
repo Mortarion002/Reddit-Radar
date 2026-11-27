@@ -21,7 +21,7 @@ from .feedback import run_feedback
 from .housekeeping import run_housekeeping
 from .ingest import is_paused, run_ingest_eml, run_scan
 from .models import Lead
-from .pipeline import Context, process
+from .pipeline import Context, process, resend_pending
 from .scorer import ScoringConfig, build_lead
 from .sources.sample import SampleError, load_mentions
 from .stats import compute_stats, format_stats
@@ -166,15 +166,27 @@ def cmd_send_drafts(args: argparse.Namespace, settings: Settings) -> int:
             print(f"send-drafts: {exc}")
             return 2
     prefix = "[dry-run] " if args.dry_run else ""
+    if result.resent:
+        print(f"{prefix}resent {result.resent} message(s) that failed to send earlier")
+    for stale in result.stale:
+        print(f"{prefix}{stale.name}: older than {settings.max_lead_age_hours}h, leads expired; not sent")
     if result.path is None:
         print(f"{prefix}no unsent drafts file in {settings.drafts_dir}")
     elif result.already_sent:
         print(f"{prefix}{result.path.name} was already sent; skipped")
-    else:
+    elif result.files:
+        names = ", ".join(f.name for f in result.files)
         print(
-            f"{prefix}{result.path.name}: sent {result.sent} draft(s), {result.flagged} flagged NEEDS EDIT, "
+            f"{prefix}{names}: sent {result.sent} draft(s), {result.flagged} flagged NEEDS EDIT, "
             f"{result.skipped_empty} skipped lead(s)"
         )
+    if result.queued:
+        print(
+            f"{prefix}{result.queued} draft(s) could not reach Telegram; saved in data/delivery_failures/ "
+            "and resent automatically on the next scan, feedback or send-drafts run"
+        )
+    if result.duplicates:
+        print(f"{prefix}{result.duplicates} draft(s) were already handled earlier; not sent twice")
     return 0
 
 
@@ -201,7 +213,10 @@ def cmd_stats(args: argparse.Namespace, settings: Settings) -> int:
         text = format_stats(compute_stats(store, args.days, now))
     print(re.sub(r"<[^>]+>", "", text).replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">"))
     if not args.no_send:
-        TelegramClient(settings, dry_run=args.dry_run).send(text, kind="stats")
+        with Store.open(settings.db_path, dry_run=args.dry_run) as store:
+            ctx = _context(settings, store, args.dry_run, now)
+            resend_pending(ctx)
+            ctx.telegram.send(text, kind="stats")
     return 0
 
 
@@ -261,6 +276,11 @@ def cmd_telegram_test(args: argparse.Namespace, settings: Settings) -> int:
         print("Telegram test failed; see data/logs/radar.log")
         return 1
     print(f"sent (message_id {message_id})")
+    if client.pending_failures():
+        with Store.open(settings.db_path) as store:
+            ctx = Context(settings=settings, store=store, telegram=client, now=_now(), dry_run=False)
+            sent, left = resend_pending(ctx)
+        print(f"resent {sent} message(s) waiting in data/delivery_failures/, {left} still waiting")
     return 0
 
 

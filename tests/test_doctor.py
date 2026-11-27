@@ -39,7 +39,7 @@ def test_all_pass(tmp_path):
     assert "@ElvanRadarBot" in names["Telegram reachable"].detail
     assert "2 from admin@f5bot.com" in names["F5Bot emails in last 7 days"].detail
     assert set(names) == {
-        ".env present", "Telegram reachable", "IMAP login", "F5Bot emails in last 7 days", "DB writable", "claude on PATH",
+        ".env present", "Telegram reachable", "Undelivered messages", "IMAP login", "F5Bot emails in last 7 days", "DB writable", "claude on PATH",
     }
     assert fake.readonly is True  # doctor never changes the mailbox
 

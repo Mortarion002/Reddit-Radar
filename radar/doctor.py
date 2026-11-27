@@ -71,6 +71,18 @@ def check_db(settings: Settings, now: datetime, dry_run: bool) -> Check:
     return Check("DB writable", True, str(settings.db_path))
 
 
+def check_deliveries(client: TelegramClient) -> Check:
+    waiting, refused = len(client.pending_failures()), len(client.dead_failures())
+    if not waiting and not refused:
+        return Check("Undelivered messages", True, "none waiting")
+    parts = []
+    if waiting:
+        parts.append(f"{waiting} waiting in data/delivery_failures/ (resent on the next run)")
+    if refused:
+        parts.append(f"{refused} refused by Telegram in data/delivery_failures/dead/ (open them to read)")
+    return Check("Undelivered messages", False, "; ".join(parts))
+
+
 def check_claude(which: Callable[[str], str | None] = shutil.which) -> Check:
     path = which("claude")
     if path:
@@ -86,7 +98,8 @@ def run_doctor(
     mailbox_factory: Callable[..., Any] = Mailbox,
     which: Callable[[str], str | None] = shutil.which,
 ) -> list[Check]:
-    checks = [check_env(settings), check_telegram(telegram or TelegramClient(settings))]
+    client = telegram or TelegramClient(settings)
+    checks = [check_env(settings), check_telegram(client), check_deliveries(client)]
     with Store.open(settings.db_path, dry_run=True) as store:
         checks += check_imap(settings, store, now, mailbox_factory)
     checks.append(check_db(settings, now, dry_run))

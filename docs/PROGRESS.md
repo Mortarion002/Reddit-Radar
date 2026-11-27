@@ -98,6 +98,23 @@ Reddit shut down public RSS feeds on Nov 13, 2026, stopped accepting new API acc
 - Nothing is lost with fewer scans: each scan fetches every F5Bot email since the last processed one. Leads scored later get a smaller recency bonus (e.g. +4 instead of +12), which can move a borderline lead from High to Medium; it still shows in the digest and the drafts.
 - `scripts/register_tasks.ps1`, the README, `docs/PROJECT_SPEC.md` (sections 1, 3, 12) and `HOW_TO_BUILD.md` updated. Re-run `register_tasks.ps1` as Administrator to apply.
 
+### Delivery safeguards (2026-11-27)
+- **Gap closed:** before, only `scan` resent `data/delivery_failures/`, so a draft that failed to send at 19:30 waited until the 09:00 scan, missing the 20:00 reply session. Now `send-drafts`, `feedback`, `stats` and `telegram-test` also resend first, through one shared `pipeline.resend_pending`. A failed 19:30 draft goes out at the next send of any kind (23:30 feedback at the latest).
+- Drafts are saved before sending, with `sent_at`/`message_id` empty until Telegram accepts them. A preserved draft carries its `draft_id` in the `RADAR-META` header, and the resend records the message id and `sent_at`, so "Replied" on a resent draft counts toward the mention ratio.
+- `send-drafts` without `--file` sends **every** unsent drafts file, oldest first, not just the newest. Files older than `MAX_LEAD_AGE_HOURS` are marked done without sending. A draft identical to one already saved (same lead and text) is never stored or sent twice.
+- `run_drafts.ps1` always ends with `send-drafts` (also when there's nothing to draft or Claude fails), and retries Claude once after 60s on a quick failure (not on a timeout).
+- Telegram client:
+  - `TelegramError` now records whether the request reached Telegram (`network`), the HTTP status and `retry_after`.
+  - After a send fails for network reasons, the rest of the run preserves messages without trying again (an outage used to cost ~45s per message and could push a task past its time limit).
+  - HTTP 429 is waited out (up to 60s, 3 times) without counting as a failure; 5xx counts as offline.
+  - Resends are paced 0.5s apart.
+  - Each queued file is claimed by renaming it to `.sending` before sending, so overlapping runs (e.g. a slow 19:15 scan and the 19:20 feedback) can't double-send. Claims older than 15 minutes, from a crashed run, are put back.
+  - A message Telegram refuses with HTTP 400 (after the plain-text fallback), or a file that can't be read, moves to `delivery_failures/dead/` instead of blocking the queue forever.
+  - Preserved files are written atomically (temp file + rename).
+- `doctor` has an "Undelivered messages" check (waiting / refused). Housekeeping deletes refused messages after 30 days; waiting ones are never deleted.
+- Seen for real on 2026-11-27 14:03: the internet was down (even `imap.gmail.com` didn't resolve), and the inbox warning was preserved and kept for the next run as designed.
+- 236 tests pass (16 new in `tests/test_delivery.py`).
+
 ## Deviations from spec
 
 - Stage 1: Windows Python has no tz database and `tzdata` isn't an allowed dependency, so `Settings.zoneinfo()` falls back to a fixed offset for `Asia/Calcutta` / `Asia/Kolkata` / `UTC` (no DST, so it's exact). Other zones fall back to UTC with a warning. Installing `tzdata` would remove the need for this.

@@ -52,6 +52,10 @@ def run_housekeeping(settings: Settings, now: datetime, dry_run: bool = False) -
         "leads": _prune(settings.leads_dir, "*.json", now - timedelta(days=KEEP_LEADS_DAYS), {"latest.json"}, dry_run),
         "drafts": _prune(settings.drafts_dir, "*.json", now - timedelta(days=KEEP_DRAFTS_DAYS), set(), dry_run),
         "unparsed": _prune(settings.unparsed_dir, "*", now - timedelta(days=KEEP_UNPARSED_DAYS), set(), dry_run),
+        # Messages Telegram refused for good. Pending ones (not in dead/) are never pruned.
+        "refused_messages": _prune(
+            settings.delivery_failures_dir / "dead", "*.txt", now - timedelta(days=KEEP_DRAFTS_DAYS), set(), dry_run
+        ),
         "task_log_rotated": int(rotate_task_log(settings, dry_run)),
     }
     if any(result.values()):

@@ -12,7 +12,7 @@ from typing import Any, Callable
 from .config import Settings
 from .digest import RunSummary
 from .models import Mention
-from .pipeline import Context, process
+from .pipeline import Context, process, resend_pending
 from .sources.f5bot_mail import Mailbox, MailboxError
 from .sources.f5bot_parser import ParseError, message_id, parse_email_result, parse_message, received_at
 from .store import Store, iso, parse_dt
@@ -141,7 +141,7 @@ def run_scan(ctx: Context, mailbox_factory: Callable[..., Any] = Mailbox) -> Run
         log.error("F5Bot inbox unreachable: %s", reason)
         summary.errors.append(f"imap: {reason}")
         warn_unreachable(ctx, reason)
-        ctx.telegram.resend_failures()
+        resend_pending(ctx)
         return summary
     if ctx.store.get_state(WARNING_STATE_KEY) and not ctx.dry_run:
         ctx.store.set_state(WARNING_STATE_KEY, "")  # inbox is back; the next outage warns straight away

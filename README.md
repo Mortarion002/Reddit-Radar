@@ -158,6 +158,32 @@ Scheduled runs do steps 2 and 3 with
 `claude -p "/draft-replies data/leads/latest.json" --allowedTools "Read,Write"` (10-minute limit).
 Wording changes belong in `docs/REPLY_RULES.md`, not in the code.
 
+## When Telegram can't be reached
+
+Nothing is lost if the internet or Telegram is down when the radar sends something:
+
+1. Each message is retried once after 5 seconds. If your ISP can't look up Telegram's address, the
+   app resolves it through 1.1.1.1 and sends with `curl`.
+2. If it still fails, the message (alert, digest, draft or warning, with its buttons) is saved to
+   `data\delivery_failures\`. The rest of that run doesn't wait on the network again; it saves
+   straight away, so an outage can't make a task run past its time limit.
+3. **Every** command that sends (`scan`, `send-drafts`, `feedback`, `stats`, `telegram-test`) first
+   resends everything waiting there, oldest first. A draft that failed at 19:30 goes out with the
+   next drafts, at the 23:30 feedback run, or at the next scan, whichever comes first. Once you're
+   back online, `python -m radar telegram-test` delivers the backlog straight away.
+4. A resent draft keeps working buttons: its Telegram message id is recorded when it finally arrives.
+
+Other safeguards:
+- Two runs at the same time never send the same saved message twice (each file is claimed first).
+- `send-drafts` sends every drafts file that hasn't gone out yet, not only the newest, and never sends
+  the same draft twice. Files older than 72 hours are skipped (their leads have expired).
+- `run_drafts.ps1` retries Claude once after a quick failure, and always ends with `send-drafts`, so
+  queued drafts go out even on days with nothing new to draft.
+- Telegram rate limits (when a backlog is resent) are waited out, and resends are spaced slightly.
+- A message Telegram rejects outright (HTTP 400) moves to `data\delivery_failures\dead\` so
+  it can't block the queue. `python -m radar doctor` lists waiting and refused messages.
+- Button taps are safe for 24 hours (Telegram keeps them); feedback runs never leave a longer gap.
+
 ## Tuning (Fridays, first 2 weeks)
 
 Read the stats message (`python -m radar stats`):
@@ -175,7 +201,7 @@ Read the stats message (`python -m radar stats`):
 |---|---|
 | No emails / no leads | `python -m radar doctor`: "F5Bot emails in last 7 days" failing means F5Bot isn't sending, or `F5BOT_SENDER` doesn't match the exact From address. Look in Gmail for the alerts. Emails that failed to parse are in `data/unparsed/`. |
 | IMAP auth failed | Use a Gmail **app password** (needs 2-step verification), not the account password. Check IMAP is on in Gmail settings. You get one Telegram warning per 6 hours while the inbox is unreachable. |
-| Nothing on Telegram | `python -m radar telegram-test`. Undelivered messages wait in `data/delivery_failures/` and are resent on the next scan. Check `TELEGRAM_CHAT_ID` is your chat with the bot. |
+| Nothing on Telegram | `python -m radar telegram-test` (it also delivers anything waiting). Undelivered messages wait in `data/delivery_failures/` and are resent by the next scan, send-drafts or feedback run. `python -m radar doctor` shows how many are waiting, and any Telegram refused (`data/delivery_failures/dead/`). Check `TELEGRAM_CHAT_ID` is your chat with the bot. |
 | `claude` not found | Install Claude Code CLI and log in so `claude --version` works in PowerShell (the VS Code extension alone isn't enough). Until then you get "Drafts skipped: run /draft-replies manually". Claude's output is in `data/logs/claude_drafts.log`. |
 | Scans not running | Task Scheduler -> `Radar_Scan` -> History. Task exit codes go to `data/logs/tasks.log`; app logs to `data/logs/radar.log`. Is the bot paused? Send `/resume`. |
 

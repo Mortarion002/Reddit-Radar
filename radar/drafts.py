@@ -12,7 +12,7 @@ from typing import Iterable
 
 from .digest import esc, lead_header, status_buttons
 from .models import Draft, Lead, short_id
-from .pipeline import Context
+from .pipeline import Context, resend_pending
 from .scorer import contains, normalize
 from .store import Store
 
@@ -155,12 +155,17 @@ def mark_file_sent(store: Store, path: Path) -> None:
     store.set_state(SENT_FILES_KEY, json.dumps(names[-500:]))
 
 
-def newest_unsent(folder: Path, store: Store) -> Path | None:
+def unsent_files(folder: Path, store: Store) -> list[Path]:
+    """Drafts files not sent yet, oldest first."""
     if not folder.exists():
-        return None
+        return []
     done = set(sent_files(store))
-    files = sorted((p for p in folder.glob("*.json") if p.name not in done), key=lambda p: p.name, reverse=True)
-    return files[0] if files else None
+    return sorted((p for p in folder.glob("*.json") if p.name not in done), key=lambda p: p.name)
+
+
+def newest_unsent(folder: Path, store: Store) -> Path | None:
+    files = unsent_files(folder, store)
+    return files[-1] if files else None
 
 
 def format_draft_message(lead: Lead | None, mention_id: str, draft: Draft, issues: list[str], now: datetime) -> str:
@@ -183,11 +188,16 @@ def format_draft_message(lead: Lead | None, mention_id: str, draft: Draft, issue
 
 @dataclass
 class SendResult:
-    path: Path | None
-    sent: int = 0
+    path: Path | None  # the last file handled
+    sent: int = 0  # drafts delivered to Telegram now
+    queued: int = 0  # drafts that couldn't be delivered; saved and resent on the next run
     flagged: int = 0
     skipped_empty: int = 0
+    duplicates: int = 0
     already_sent: bool = False
+    resent: int = 0  # earlier undelivered messages that went out at the start of this run
+    files: list[Path] = field(default_factory=list)
+    stale: list[Path] = field(default_factory=list)
 
 
 def competitor_names(ctx: Context) -> list[str]:
@@ -195,17 +205,8 @@ def competitor_names(ctx: Context) -> list[str]:
     return [str(c) for c in (comps.get("priority") or []) + (comps.get("tracked") or [])]
 
 
-def send_drafts(ctx: Context, path: Path | None = None) -> SendResult:
-    target = path or newest_unsent(ctx.settings.drafts_dir, ctx.store)
-    if target is None:
-        log.info("No unsent drafts file in %s", ctx.settings.drafts_dir)
-        return SendResult(None)
-    if target.name in sent_files(ctx.store):
-        log.info("%s was already sent; skipping", target.name)
-        return SendResult(target, already_sent=True)
-
+def _send_file(ctx: Context, target: Path, result: SendResult) -> None:
     drafts_file = load_drafts(target)
-    result = SendResult(target)
     real = [d for d in drafts_file.drafts if d.draft.strip()]
     replies, mentions = ctx.store.reply_stats(ctx.now - timedelta(days=RATIO_WINDOW_DAYS))
     allowed = allowed_mentions(mentions, replies, len(real))
@@ -217,6 +218,11 @@ def send_drafts(ctx: Context, path: Path | None = None) -> SendResult:
             result.skipped_empty += 1
             log.info("Skipped lead %s: %s", draft.mention_id, draft.notes or "(no reason given)")
             continue
+        if ctx.store.find_draft(draft.mention_id, draft.draft) is not None:
+            # Already saved by an earlier, interrupted run; it was sent or is queued for resend.
+            result.duplicates += 1
+            log.info("Draft for %s already handled; not sending it twice", draft.mention_id)
+            continue
         issues = validate(draft, competitors)
         if draft.mentions_elvan:
             if used >= allowed:
@@ -226,11 +232,58 @@ def send_drafts(ctx: Context, path: Path | None = None) -> SendResult:
         draft.issues = issues
         lead = ctx.store.get_lead(draft.mention_id)
         text = format_draft_message(lead, draft.mention_id, draft, issues, ctx.now)
-        message_id = ctx.telegram.send(text, status_buttons(short_id(draft.mention_id)), kind="draft")
-        ctx.store.save_draft(
-            draft.mention_id, draft.mentions_elvan, draft.draft, draft.notes, ctx.now, ctx.now, message_id
+        # Save first (not yet delivered), then send. If the send fails, the message is queued in
+        # delivery_failures/ with this draft id, and resend_pending records the delivery later.
+        draft_id = ctx.store.save_draft(
+            draft.mention_id, draft.mentions_elvan, draft.draft, draft.notes, ctx.now, None, None
         )
-        result.sent += 1
+        message_id = ctx.telegram.send(
+            text,
+            status_buttons(short_id(draft.mention_id)),
+            kind="draft",
+            meta={"draft_id": draft_id, "mention_id": draft.mention_id},
+        )
+        if message_id is not None:
+            ctx.store.mark_draft_delivered(draft_id, message_id, ctx.now)
+            result.sent += 1
+        elif ctx.dry_run:
+            result.sent += 1  # printed instead of sent
+        else:
+            result.queued += 1
         result.flagged += bool(issues)
     mark_file_sent(ctx.store, target)
+
+
+def send_drafts(ctx: Context, path: Path | None = None) -> SendResult:
+    """Send drafts to Telegram.
+
+    First resends anything still waiting in delivery_failures/ (e.g. drafts whose send failed last
+    time). Then, with a path, sends that file; without one, sends every unsent drafts file, oldest
+    first. Files older than MAX_LEAD_AGE_HOURS are marked done without sending (their leads expired).
+    """
+    result = SendResult(None)
+    result.resent, _ = resend_pending(ctx)
+
+    if path is not None:
+        result.path = path
+        if path.name in sent_files(ctx.store):
+            log.info("%s was already sent; skipping", path.name)
+            result.already_sent = True
+            return result
+        _send_file(ctx, path, result)
+        result.files.append(path)
+        return result
+
+    cutoff = (ctx.now - timedelta(hours=ctx.settings.max_lead_age_hours)).timestamp()
+    for target in unsent_files(ctx.settings.drafts_dir, ctx.store):
+        result.path = target
+        if target.stat().st_mtime < cutoff:
+            log.warning("%s is older than %sh; its leads expired, not sending", target.name, ctx.settings.max_lead_age_hours)
+            mark_file_sent(ctx.store, target)
+            result.stale.append(target)
+            continue
+        _send_file(ctx, target, result)
+        result.files.append(target)
+    if result.path is None:
+        log.info("No unsent drafts file in %s", ctx.settings.drafts_dir)
     return result

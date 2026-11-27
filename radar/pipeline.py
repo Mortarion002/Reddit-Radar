@@ -36,6 +36,22 @@ class Context:
         return ScoringConfig.from_settings(self.settings)
 
 
+def resend_pending(ctx: Context) -> tuple[int, int]:
+    """Resend everything waiting in data/delivery_failures/ (alerts, digests, drafts, warnings).
+
+    Every command that sends to Telegram calls this first, so nothing undelivered waits longer
+    than the next run of any of them. A resent draft gets its Telegram message id recorded, so
+    its buttons keep working for the mention ratio.
+    """
+
+    def on_sent(meta: dict, message_id: int) -> None:
+        draft_id = meta.get("draft_id")
+        if isinstance(draft_id, int):
+            ctx.store.mark_draft_delivered(draft_id, message_id or None, ctx.now)
+
+    return ctx.telegram.resend_failures(on_sent=on_sent)
+
+
 def store_and_score(ctx: Context, mentions: list[Mention], email_uids: Mapping[str, str] | None = None) -> list[Lead]:
     new = ctx.store.upsert_mentions(mentions, email_uids=email_uids, now=ctx.now)
     cfg = ctx.cfg
@@ -87,7 +103,7 @@ def process(
     summary = summary or RunSummary()
     if not summary.mentions_found:
         summary.mentions_found = len(mentions)
-    ctx.telegram.resend_failures()
+    resend_pending(ctx)
 
     leads = store_and_score(ctx, mentions, email_uids)
     summary.new_mentions = len(leads)

@@ -327,6 +327,24 @@ class Store:
             )
         return int(cur.lastrowid)
 
+    def mark_draft_delivered(self, draft_id: int, message_id: int | None, at: datetime) -> None:
+        """Record that a draft reached Telegram (now, or later when resent from delivery_failures/)."""
+        with self.conn:
+            self.conn.execute(
+                "UPDATE drafts SET message_id = ?, sent_at = ? WHERE id = ?", (message_id, iso(at), draft_id)
+            )
+
+    def find_draft(self, mention_id: str, draft_text: str) -> int | None:
+        """Id of an identical draft already saved (so a re-run never stores or sends it twice)."""
+        row = self.conn.execute(
+            "SELECT id FROM drafts WHERE mention_id = ? AND draft_text = ? ORDER BY id DESC LIMIT 1",
+            (mention_id, draft_text),
+        ).fetchone()
+        return int(row[0]) if row else None
+
+    def undelivered_drafts(self) -> int:
+        return int(self.conn.execute("SELECT COUNT(*) FROM drafts WHERE sent_at IS NULL").fetchone()[0])
+
     def reply_stats(self, since: datetime) -> tuple[int, int]:
         """(replies, of which named Elvan) since `since`, from Aman's Telegram taps.
 

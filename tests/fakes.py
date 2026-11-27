@@ -64,8 +64,8 @@ class FakeTelegram:
     configured: bool = True
     _next: int = 1000
 
-    def send(self, text, buttons=None, kind="message", silent=False, preserve=True):
-        self.sent.append({"text": text, "buttons": buttons, "kind": kind, "silent": silent})
+    def send(self, text, buttons=None, kind="message", silent=False, preserve=True, meta=None):
+        self.sent.append({"text": text, "buttons": buttons, "kind": kind, "silent": silent, "meta": meta})
         if self.fail:
             return None
         self._next += 1
@@ -76,7 +76,7 @@ class FakeTelegram:
     answers: list[str] = field(default_factory=list)
     edits: list[tuple[str, int, Any]] = field(default_factory=list)
 
-    def resend_failures(self):
+    def resend_failures(self, on_sent=None):
         self.resends += 1
         return 0, 0
 
