@@ -31,9 +31,19 @@ The stages are `docs/stages/stage-01-*.md` to `stage-07-*.md`. When Aman says "b
 3. Write the tests the stage asks for. Run `python -m pytest -q` and make sure everything passes, including earlier stages' tests.
 4. Show Aman how to run the stage's manual check.
 5. Tick the acceptance checklist in the stage file. Update `docs/PROGRESS.md` with the stage number, date, what was built and any deviation from the spec.
-6. Stop and tell Aman it's ready for review. **Do not commit or push** until Aman says so. When he does, use the commit message given in the stage file.
+6. Ship it with the git workflow below, using the commit message given in the stage file.
 
 If the spec and the stage file disagree, the stage file wins for that stage. Note the conflict in `docs/PROGRESS.md`.
+
+## Git workflow (every change, not just stages)
+
+Aman's standing rule (2026-11-27): never commit straight to `main`.
+
+1. Start from an up-to-date `main` (`git switch main && git pull`), then create a branch named for the change: `feat/...` (new behaviour), `fix/...` (bug fix), `docs/...`, `chore/...` (config, scripts, cleanup), `test/...`. Short and descriptive, e.g. `fix/f5bot-comment-links`.
+2. Commit the work on that branch and push it: `git push -u origin <branch>`.
+3. Run `python -m pytest -q`. Every test must pass.
+4. Only then merge into `main` with `git merge --no-ff <branch>` and push `main`. If anything fails, fix it on the branch first; `main` only ever receives passing code.
+5. Never commit `.env`, `data/` or unredacted real emails (redact the F5Bot unsubscribe key).
 
 ## Stack
 
