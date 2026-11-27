@@ -106,6 +106,18 @@ Tasks run as you (Claude Code needs your session), wake the PC, and catch up if 
 They only run while the PC is on or able to wake, so check your sleep settings.
 To remove them: `Get-ScheduledTask Radar_* | Unregister-ScheduledTask -Confirm:$false`.
 
+## Run everything now
+
+To run the whole cycle on demand (same steps as the scheduled tasks, in order):
+
+```powershell
+scripts\run_all.ps1              # scan -> feedback -> Claude drafts -> send to Telegram
+scripts\run_all.ps1 -NoDrafts    # scan + feedback only, no Claude run
+```
+
+Use a normal PowerShell in the project folder (no Administrator needed). Drafting only runs Claude
+when there are new leads without a draft; it also resends anything that failed to reach Telegram.
+
 ## Commands
 
 Every command accepts `--dry-run` (no Telegram sends, no DB writes, no mailbox changes) and `-v`.
